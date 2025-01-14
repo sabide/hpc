@@ -11,6 +11,12 @@ https://calculs.univ-cotedazur.fr/?page_id=100 ?
 problème de connection séeance annulée
 
 
+Host azzurra
+   Hostname login-hpc.univ-cotedazur.fr
+   IdentityFile ~/.ssh/sshkey-private
+   User nickname     
+
+
 # Séance 3
 ## connexion machine
 
