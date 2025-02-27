@@ -30,6 +30,7 @@ program fd_p2p
   ! global index rang
   is = rank*n_loc + 1
   ie = is + n_loc - 1
+!  print*,rank,is,ie
   
   allocate( x(is-1:ie+1) ) ; x = 0 ;
   allocate( fi(is-1:ie+1) ) ; fi = 0 ;
