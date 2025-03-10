@@ -5,6 +5,10 @@ cloner le dépôt pour récupérer les sources
 Compiler et installer les libraries hdf5 et decomp2d.
 On utilisera le répertoire $HOME/local/projet/
 
+```shell
+module  load intel/oneapi_2024.1.0.596 cmake/3.30.3-gcc12
+```
+
 ### compilation de la librairie ```hdf5```
 
 On souhaite compiler la librairie hdf5 qui va nous permettre d'écrire en paralléle des données.  
