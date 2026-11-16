@@ -3,7 +3,11 @@ project(PingPong LANGUAGES Fortran)
 
 
 # Liste des fichiers sources
-set(SOURCES fd_p2p.f90 )
+set(SOURCES
+    src/ping_pong_1.f90
+    src/ping_pong_2.f90
+    src/ping_pong_3.f90
+)
 
 # Générer un exécutable pour chaque fichier source
 foreach(SOURCE ${SOURCES})

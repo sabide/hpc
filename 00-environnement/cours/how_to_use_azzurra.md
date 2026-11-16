@@ -122,7 +122,7 @@ icc -O3 -xHost hello_intel.c -o hello_intel
 icx -O3 -march=native hello_intel.c -o hello_intel
 ```
 
-Options utilisées (voir week-02):
+Options utilisées (voir 01-performance-sequentielle/demos):
 
 * `-O3` : optimisation agressive, adaptée aux codes de calcul intensif ;
 * `-xHost` (icc) / `-march=native` (icx) : génère du code optimisé pour l’architecture CPU de la machine.

@@ -1,0 +1,24 @@
+# macOS / éditeurs
+.DS_Store
+._*
+*~
+
+# Build
+build/
+cmake-build-*/
+*.o
+*.mod
+*.pyc
+__pycache__/
+
+# Données générées (à régénérer)
+*.dat
+*.h5
+*.hdf5
+
+# Dépendances volumineuses (voir projet/sujet.md pour le wget)
+projet/deps/*.tar.gz
+
+# Environnements Python locaux
+.venv/
+python_pkgs/
