@@ -136,13 +136,23 @@ int main(int argc, char** argv)
     // ============ Version ikj ============
 
     t0 = Clock::now();
-    for(int rep=0;rep<1000;rep++){
+    // Un premier appel donne la durée d'un produit ; on répète ensuite pour mesurer environ 0,3 s
+    // au total (entre 1 et 1000 fois). Avec 1000 répétitions fixes, N = 1024 prendrait plusieurs
+    // minutes. Remarque : matmul_ikj accumule dans C sans la remettre à zéro (seuls le temps et
+    // les GFLOP/s comptent ici ; le checksum ikj n'est pas comparable à celui de la version ijk).
     matmul_ikj(A, B, C, N);
     //matmul_tiled(A, B, C, N);
+    double t_one = std::chrono::duration<double>(Clock::now() - t0).count();
+    const int reps = (t_one > 0.0) ? std::max(1, std::min(1000, static_cast<int>(0.3 / t_one))) : 1000;
+
+    t0 = Clock::now();
+    for (int rep = 0; rep < reps; rep++) {
+        matmul_ikj(A, B, C, N);
+        //matmul_tiled(A, B, C, N);
     }
     t1 = Clock::now();
 
-    double time_ikj = std::chrono::duration<double>(t1 - t0).count()/1000;
+    double time_ikj = std::chrono::duration<double>(t1 - t0).count() / reps;
 
     // Modèle GEMM optimiste : ~3 N^2 doubles -> 24 N^2 bytes
     double bytes_ikj = 3.0 * N * N * sizeof(double);

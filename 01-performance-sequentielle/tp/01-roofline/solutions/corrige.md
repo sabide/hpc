@@ -113,8 +113,11 @@ $I^* \approx 0{,}30$ flop/octet.
    Remèdes : garder une partie de `C` **en registres** pendant plusieurs FMA, et **tiling** pour réutiliser
    `B` depuis le cache (séance suivante, `demos/tiling-1`). Le roofline donne l'intensité d'un algorithme
    **idéal** ; une implémentation naïve reste sous le toit.
-6. Le `stencil` de l'équation d'onde a $I \approx 0{,}31$ : au mieux au point de rupture (sur le M3 ; sur un cœur x86 de serveur
-   $I^*$ est en général plus grand, donc franchement sous le toit mémoire, à vérifier avec les mesures des étudiants), donc le solveur
+6. Le schéma saute-mouton de `waves_1D` fait 5 flops par point et touche 3 tableaux (lecture de `p` et `p_prev`,
+   écriture de `p_next`) : $I = 5/24 \approx 0{,}21$ flop/octet, **plus bas** que le `stencil` du TP
+   ($5/16 \approx 0{,}31$, un seul tableau lu). Sur le M3 on est sous ou au voisinage de $I^*$ ; sur un cœur x86
+   de serveur $I^*$ est en général plus grand, donc franchement sous le toit mémoire (à vérifier avec les
+   mesures des étudiants). Le solveur
    est **limité par la mémoire** pour tout cœur supplémentaire (la bande passante est partagée entre
    cœurs). Augmenter le nombre de cœurs aide jusqu'à saturation de la bande passante, pas au-delà ; pour
    aller plus vite, il faut réduire le trafic (fusion de boucles, tiling temporel) ou ajouter des

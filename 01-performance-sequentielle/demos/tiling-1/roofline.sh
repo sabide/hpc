@@ -1,18 +1,24 @@
 #!/usr/bin/env bash
 
-# Script : run_roofline.sh
-# Usage  : ./run_roofline.sh
+# Script : roofline.sh  (balayage en taille de matmul_roofline)
+# Usage  : ./roofline.sh [exécutable]     (par défaut ./matmul_roofline)
 # Sortie : roofline_data.dat avec les colonnes :
 #          N  I_ijk  Perf_ijk  I_ikj  Perf_ikj
 
 SIZES=(4  6  8  10  12  16 32 48 64 96 128 192 256 )
 OUTFILE="roofline_data.dat"
+EXE="${1:-./matmul_roofline}"
+
+if [[ ! -x "$EXE" ]]; then
+    echo "Exécutable introuvable : $EXE (compiler d'abord, voir README.md)" >&2
+    exit 1
+fi
 
 echo "# N   I_ijk[FLOP/Byte]   Perf_ijk[GFLOP/s]   I_ikj[FLOP/Byte]   Perf_ikj[GFLOP/s]" > "$OUTFILE"
 
 for N in "${SIZES[@]}"; do
     echo ">>> N = $N"
-    OUTPUT=$(mpirun -np 1 ./matmul_roofline "$N")
+    OUTPUT=$("$EXE" "$N")
 
     # On utilise awk avec un petit automate pour distinguer les deux versions
     read I_IJK PERF_IJK I_IKJ PERF_IKJ <<< "$(echo "$OUTPUT" | awk '

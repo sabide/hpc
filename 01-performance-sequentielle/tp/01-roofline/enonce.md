@@ -198,7 +198,7 @@ tableau est affiché quand même.
    `./sweep.sh`, retracez. Qu'observez-vous ? (Lien avec l'exercice 3.)
 5. `matmul` est du côté « calcul » mais n'atteint qu'une fraction de la crête. Que lui manque-t-il ?
    (Indice : comptez les accès mémoire que fait chaque FMA dans la boucle intérieure de `k_matmul` ; pistes dans `../../demos/tiling-1`.)
-6. Où se situe le noyau `stencil` de l'équation d'onde ? Qu'en concluez-vous pour le solveur 1D/2D du cours ?
+6. Le noyau `stencil` ressemble à l'équation d'onde mais n'a qu'un tableau d'entrée. Le vrai schéma saute-mouton de `../../demos/waves_1D` lit deux tableaux (`p`, `p_prev`) et en écrit un : calculez son intensité (5 flops par point) et placez-le par rapport à `stencil`. Qu'en concluez-vous pour le solveur 1D/2D du cours ?
 
 ## Bilan (5 min)
 

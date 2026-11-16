@@ -109,8 +109,10 @@ program wave1d_reflecting_timing
   !========================
   ! Résultat / sortie simple
   !========================
-  write(*,'(A,I6,A,I8,A,F10.6)') 'N = ', N, ', nt = ', nt, ', temps = ', elapsed, ' s'
-  write(*,'(A,F12.6)') 'p(x = L/2, t = T) = ', p(N/2)
+  write(*,'(A,I6,A,I8,A,F10.6,A)') 'N = ', N, ', nt = ', nt, ', temps = ', elapsed, ' s'
+  ! N est impair : le centre est le point d'indice (N+1)/2 en Fortran (indexation depuis 1),
+  ! soit p[N/2] en C/C++/Python (indexation depuis 0).
+  write(*,'(A,F12.6)') 'p(x = L/2, t = T) = ', p((N+1)/2)
 
 end program wave1d_reflecting_timing
 

@@ -430,14 +430,14 @@ Les trois premiers sont \textbf{très en dessous} de $I^*$ : c'est la \textbf{m�
 \end{column}
 \begin{column}{0.42\textwidth}
 \begin{exampleblock}{Le lien avec l'équation d'onde}
-Le schéma en différences finies
+Le schéma saute-mouton de la démo \texttt{waves\_1D}
 \[
-u_i' = a\,u_{i-1} + b\,u_i + c\,u_{i+1}
+p_i^{n+1} = -p_i^{n-1} + 2(1-\beta^2)\,p_i^{n} + \beta^2\,(p_{i-1}^{n}+p_{i+1}^{n})
 \]
-est le noyau \texttt{stencil} : $I \approx 0{,}31$. C'est \textbf{sous} $I^*$ ou à son voisinage : sur un cœur de serveur $I^*$ est en général plus grand (crête plus haute, bande passante par cœur plus faible). À vérifier avec \textbf{vos} mesures.
+lit $p^n$ et $p^{n-1}$, écrit $p^{n+1}$ : 5 flops pour 24 octets, $I = 5/24 \approx 0{,}21$. Le noyau \texttt{stencil} du TP (un seul tableau lu, $I=5/16$) en est une version simplifiée : \textbf{sous} $I^*$ ou à son voisinage selon la machine ($I^*$ est en général plus grand sur un cœur de serveur). À vérifier avec \textbf{vos} mesures.
 \end{exampleblock}
 \begin{alertblock}{Ce que ça implique}
-Un solveur d'EDP explicite est naturellement \textbf{limité par la mémoire}. Ajouter des cœurs sur un même nœud aide jusqu'à saturer la bande passante, pas au-delà. Pour aller plus loin : réduire le trafic (fusion de boucles, tiling) ou ajouter des \textbf{nœuds} (MPI).
+Un solveur d'EDP explicite est naturellement \textbf{limité par la mémoire} : ajouter des cœurs sur un nœud aide jusqu'à saturer la bande passante. Ensuite : réduire le trafic (tiling) ou ajouter des \textbf{nœuds} (MPI).
 \end{alertblock}
 \end{column}
 \end{columns}
