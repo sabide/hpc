@@ -1,0 +1,263 @@
+---
+title: "Accéder au cluster Zen"
+subtitle: "Séance 1 — Objectif 1 : créer son compte MesoNET et sa clé SSH"
+author: "HPC — 2026-2027"
+format:
+  revealjs:
+    theme: [simple, hpc.scss]
+    slide-number: true
+    code-copy: true
+    code-line-numbers: false
+    preview-links: auto
+    transition: none
+    width: 1600
+    height: 900
+    margin: 0.04
+    embed-resources: true
+lang: fr
+---
+
+## Objectif, vue d'ensemble et prérequis
+
+::: {.columns}
+::: {.column width="55%"}
+À la fin de cette partie, vous avez :
+
+1. un **compte MesoNET** rattaché à votre établissement (eduGAIN) ;
+2. un **profil** complété dans le projet *Zen – Formation Zen* ;
+3. une **paire de clés SSH**, clé publique déposée sur le portail ;
+4. un **premier `ssh`** réussi vers `zen.univ-lille.fr`.
+
+```{mermaid}
+%%| fig-align: center
+flowchart LR
+  A["1. Mail<br/>d'invitation"] --> B["2. Compte<br/>MesoNET"]
+  B --> C["3. Profil<br/>Zen"]
+  C --> D["4. Clés<br/>SSH"]
+  D --> E["5. Connexion<br/>à Zen"]
+```
+
+Étapes 1 à 3 dans le navigateur, étape 4 dans un terminal puis sur le portail, étape 5 dans un terminal.
+:::
+::: {.column width="45%"}
+**Prérequis**
+
+- Être inscrit à la formation : **le responsable vous a invité** sur MesoNET.
+- Avoir accès à l'adresse mail renseignée par le responsable (réception de l'invitation).
+- Un terminal avec un client SSH :
+  - **Linux / macOS** : déjà installé ;
+  - **Windows** : MobaXterm (Home, version portable).
+
+::: {.callout-note}
+Aucun mot de passe sur Zen : connexion **obligatoirement par clé SSH**.
+:::
+
+::: {.callout-warning}
+Le mail d'invitation a une **date d'expiration**. Une invitation expirée ne permet plus l'accès : prévenez-moi rapidement.
+:::
+:::
+:::
+
+## Étapes 1 à 3 — Mail, compte MesoNET, profil
+
+::: {.columns}
+::: {.column width="50%"}
+### 1. Le mail d'invitation
+
+Deux liens, à utiliser **dans l'ordre** :
+
+| Ordre | Lien | Usage |
+|:-----:|------|-------|
+| 1 | Création de compte | Créer le compte MesoNET |
+| 2 | Profil | À ouvrir **après** validation du compte |
+
+### 2. Créer le compte MesoNET
+
+Cliquez sur le **premier lien** et suivez la procédure :
+
+- **Identification eduGAIN** : tapez quelques lettres, votre établissement apparaît dans le menu.
+  - Absent ? Demandez à votre responsable. **Pas de compte local.**
+- **Champ « Notes »** (obligatoire) : **intitulé de la formation** et **établissement**.
+:::
+::: {.column width="50%"}
+### 3. Compléter le profil
+
+Après validation du compte, ouvrez le **second lien** :
+
+| Champ | Valeur |
+|-------|--------|
+| Laboratoire | `Zen - Formation Zen` |
+| Statut | `étudiant` |
+| Établissement | votre établissement |
+
+En cas de doute sur l'établissement, demandez à votre responsable de formation.
+
+::: {.callout-note}
+**Exemple de champ « Notes »** : *Master … — cours HPC — Université Côte d'Azur*. Sans ce champ, la demande ne peut pas être traitée.
+:::
+
+::: {.callout-tip}
+Ne cliquez pas sur le second lien tant que le compte n'est pas validé.
+:::
+:::
+:::
+
+## Étape 4a — Générer sa paire de clés SSH
+
+::: {.columns}
+::: {.column width="50%"}
+**Principe** : clé **privée** (personnelle, ne la partagez jamais, elle reste sur votre machine), clé **publique** `.pub` (déposée sur le portail), **passphrase** pour protéger la clé privée. Type recommandé : **ed25519**.
+
+### Linux / macOS
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
+cat ~/.ssh/id_ed25519.pub
+```
+
+- Choisissez une **passphrase** quand elle est demandée.
+- `id_ed25519` = clé **privée**, `id_ed25519.pub` = clé **publique**.
+
+Si ed25519 ne fonctionne pas, variante RSA (**3072 bits minimum**) :
+
+```bash
+ssh-keygen -t rsa -b 3072 -f ~/.ssh/id_rsa
+```
+:::
+::: {.column width="50%"}
+### Windows (MobaXterm)
+
+1. Téléchargez la version portable sur `mobaxterm.mobatek.net`, extrayez le `.zip`.
+2. Lancez MobaXterm, ouvrez **MobaKeyGen**.
+3. Choisissez **EdDSA (Ed25519)**.
+4. **Generate**, bougez la souris jusqu'à ce que la barre verte soit pleine.
+5. **Key comment** explicite (par ex. `Zen`) et **passphrase**.
+6. **Save private key** (conservez-la !), puis **Save public key**.
+7. **Laissez la fenêtre ouverte** : vous copierez le cadre « clé publique » dans le portail.
+:::
+:::
+
+## Étape 4b — Déposer la clé et l'associer au projet
+
+::: {.columns}
+::: {.column width="50%"}
+### Déposer la clé publique
+
+1. **acces.mesonet.fr** → **Connexion** (via eduGAIN, comme à la création du compte).
+2. Icône **Utilisateur** en haut à droite → **Clés ssh**.
+3. **Ajouter une clé**.
+4. Renseignez :
+   - **Nom de la clé** : un identifiant unique ;
+   - **Votre clé publique ssh** : contenu du fichier `.pub`.
+5. Cliquez sur **ajouter**.
+:::
+::: {.column width="50%"}
+### Associer la clé au projet
+
+Déposer la clé ne suffit pas : elle doit être **associée à votre compte dans le projet**.
+
+1. Dans la **liste des projets** : **Ajouter une clé SSH**.
+2. **Acceptez les CGU** de la machine.
+3. **Sélectionnez la clé**, puis **Modifier**.
+
+::: {.callout-note}
+Une clé en attente de déploiement est signalée par ⚠️. Le symbole disparaît une fois la clé déployée ; le délai dépend de la machine.
+:::
+:::
+:::
+
+## Étape 5 — Première connexion
+
+::: {.columns}
+::: {.column width="50%"}
+### Votre identifiant
+
+- Comptes créés **automatiquement toutes les 10 minutes** après la procédure d'accès.
+- Format **`m2XXXX-YY`** : `m2XXXX` = numéro du **projet**, `YY` = numéro d'utilisateur.
+- Un identifiant par couple **projet / machine**.
+- Le portail (liste des projets) affiche votre login et la clé associée.
+
+### Se connecter
+
+```bash
+ssh -X m2XXXX-YY@zen.univ-lille.fr -i ~/.ssh/id_ed25519
+```
+
+`-i` peut être omis si la clé a un nom standard (`id_ed25519`, `id_rsa`). Aucun VPN n'est mentionné dans la documentation.
+:::
+::: {.column width="50%"}
+### Raccourci avec `~/.ssh/config`
+
+```{.default filename="~/.ssh/config"}
+Host zen
+    Hostname zen.univ-lille.fr
+    User m2XXXX-YY
+    IdentityFile ~/.ssh/id_ed25519
+```
+
+Puis simplement :
+
+```bash
+ssh zen
+```
+
+::: {.callout-note}
+Sous Windows, MobaXterm : session SSH vers `zen.univ-lille.fr`, avec votre identifiant et votre clé privée.
+:::
+:::
+:::
+
+## Dépannage
+
+::: {.columns}
+::: {.column width="50%"}
+::: {.callout-warning}
+**5 échecs de connexion** → adresse IP **bloquée 1 heure**. Après un premier échec, **attendez 10 minutes** avant de réessayer.
+:::
+
+Vérifiez dans l'ordre :
+
+1. Le compte a-t-il eu le temps d'être créé (10 minutes) ?
+2. La clé est-elle **associée au projet** et sans ⚠️ ?
+3. Bonne **clé privée** (`-i`) et bon **identifiant** ?
+4. Avez-vous déposé la clé **publique** (`.pub`) et non la privée ?
+:::
+::: {.column width="50%"}
+### Toujours bloqué ?
+
+Écrivez à **support@mesonet.fr** avec :
+
+- votre nom et votre projet ;
+- votre adresse IP publique ;
+- la sortie de :
+
+```bash
+ssh -vvv -X m2XXXX-YY@zen.univ-lille.fr
+```
+:::
+:::
+
+## Bilan et ressources
+
+::: {.columns}
+::: {.column width="50%"}
+### Checklist
+
+- [ ] Compte MesoNET créé via eduGAIN, champ « Notes » rempli
+- [ ] Profil complété (*Zen – Formation Zen*, étudiant)
+- [ ] Clé SSH générée, protégée par une passphrase
+- [ ] Clé publique déposée sur `acces.mesonet.fr`
+- [ ] Clé associée au projet, CGU acceptées, plus de ⚠️
+- [ ] `ssh` vers `zen.univ-lille.fr` réussi
+:::
+::: {.column width="50%"}
+### Ressources
+
+- [Accès étudiants Zen](https://www.mesonet.fr/documentation/user-documentation/code_form/zen/acces/acces_etu)
+- [Clés SSH](https://www.mesonet.fr/documentation/user-documentation/acces/ssh)
+- [Connexion à Zen](https://www.mesonet.fr/documentation/user-documentation/code_form/zen/connexion)
+- [Portail acces.mesonet.fr](https://acces.mesonet.fr)
+
+**Prochaine étape** : jobs et mini-tuto Slurm.
+:::
+:::

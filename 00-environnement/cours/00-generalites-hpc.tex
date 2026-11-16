@@ -1,0 +1,396 @@
+% Généralités sur le monde du HPC — saison 2026-2027
+% Contenu adapté de V. Eijkhout, « The Art of HPC » (https://theartofhpc.com),
+% licence CC-BY 4.0, complété par top500.org, genci.fr, mesonet.fr et
+% eurohpc-ju.europa.eu (consultés le 16/11/2026). Figures en TikZ.
+\documentclass[8pt,aspectratio=169]{beamer}
+
+\usepackage[french]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+\usepackage{booktabs,array}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usetikzlibrary{babel,positioning,calc,arrows.meta,fit,backgrounds}
+
+\usetheme[progressbar=frametitle,numbering=fraction,block=fill]{metropolis}
+\metroset{sectionpage=none,titleformat=regular}
+\setbeamersize{text margin left=0.55cm,text margin right=0.55cm}
+
+\definecolor{hpcblue}{HTML}{1F4E79}
+\definecolor{hpcorange}{HTML}{C55A11}
+\definecolor{hpcgreen}{HTML}{3B7D23}
+\definecolor{hpcgrey}{HTML}{D9D9D9}
+\setbeamercolor{palette primary}{bg=hpcblue,fg=white}
+\setbeamercolor{progress bar}{fg=hpcorange,bg=hpcgrey}
+\setbeamercolor{frametitle}{bg=hpcblue,fg=white}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\src}[1]{\vfill{\tiny\color{gray}Source : #1\par}}
+\newcommand{\eij}{V.~Eijkhout, \emph{The Art of HPC}, vol.~1, CC-BY~4.0}
+\setlength{\parskip}{2pt}
+\setbeamertemplate{itemize items}[circle]
+
+\title{Le calcul haute performance}
+\subtitle{Panorama : à quoi ça sert, qui s'en sert, comment ça s'organise\\
+\small Généralités pour des étudiants en mathématiques appliquées}
+\author{HPC --- 2026-2027}
+\date{Séance 1}
+
+\begin{document}
+
+\maketitle
+
+% ---------------------------------------------------------------
+\begin{frame}{Le HPC, c'est quoi\,?}
+\begin{columns}[T]
+\begin{column}{0.54\textwidth}
+\textbf{HPC} (\emph{High Performance Computing}, \emph{calcul haute performance}) : utiliser de nombreuses ressources de calcul \textbf{en parallèle} pour résoudre des problèmes trop gros, ou trop longs, pour un ordinateur ordinaire.
+
+\medskip
+Trois façons de dépasser les limites d'un ordinateur :
+\begin{itemize}
+\item \textbf{plus gros} : plus de mémoire pour des problèmes de grande taille (maillages fins, millions d'inconnues) ;
+\item \textbf{plus vite} : obtenir le résultat en quelques heures plutôt qu'en plusieurs mois ;
+\item \textbf{plus de cas} : lancer des milliers de calculs (études paramétriques, quantification d'incertitudes).
+\end{itemize}
+
+\medskip
+Le HPC ne se limite pas à \og avoir une grosse machine \fg{} : il faut \textbf{algorithme, implémentation et architecture} adaptés les uns aux autres.
+\end{column}
+\begin{column}{0.42\textwidth}
+\begin{block}{Quelques mots à distinguer}
+\begin{tabular}{@{}L{1.8cm}L{3.9cm}@{}}
+HPC & calcul de simulation à grande échelle\\
+HPDA & analyse de données massives sur des machines HPC\\
+IA & apprentissage, de plus en plus sur les mêmes machines (GPU)\\
+Calcul scientifique & modéliser, discrétiser, résoudre : le HPC en est l'outil\\
+\end{tabular}
+\end{block}
+\begin{alertblock}{Pour un mathématicien appliqué}
+Le HPC est l'endroit où l'analyse numérique rencontre la machine : la \textbf{complexité} d'un algorithme se lit aussi en \emph{mémoire} et en \emph{communications}.
+\end{alertblock}
+\end{column}
+\end{columns}
+\src{définitions usuelles ; \eij{}, introduction et cours \emph{A taste of scientific computing}.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{À quoi sert le HPC\,? Ce que l'on y calcule}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Simuler des phénomènes décrits par des équations}
+
+\smallskip
+\begin{tabular}{@{}L{3.3cm}L{4.1cm}@{}}
+\toprule
+Domaine & Modèle mathématique\\
+\midrule
+Mécanique des fluides, aérodynamique & équations aux dérivées partielles (Navier-Stokes)\\
+Météorologie, climat & EDP sur maillage de l'atmosphère et des océans\\
+Ondes, acoustique, sismique & équation des ondes (TP du cours)\\
+Dynamique moléculaire, astrophysique & problème à $N$ corps\\
+Structures, matériaux & éléments finis\\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{Et derrière, toujours les mêmes briques numériques}
+\begin{itemize}
+\item \textbf{systèmes linéaires} $Ax=b$, creux ou denses ;
+\item produits matrice-matrice, valeurs propres ;
+\item transformées de Fourier ;
+\item méthodes itératives (gradient conjugué), multigrille ;
+\item interactions de particules : $O(N^2)$ en naïf, $O(N\log N)$ avec des algorithmes malins.
+\end{itemize}
+
+\medskip
+\begin{exampleblock}{Fil rouge du cours}
+Équation d'onde 1D et 2D, différences finies, décomposition de domaine, résolution distribuée (projet).
+\end{exampleblock}
+\end{column}
+\end{columns}
+\src{domaines d'application usuels ; briques numériques : \eij{}, parties I et II ; \texttt{planning.md} du cours.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Un peu d'histoire : de quelques cœurs géants à des milliers de nœuds}
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+  era/.style={draw=hpcblue,fill=hpcblue!12,rounded corners=2pt,align=left,font=\footnotesize,text width=3.3cm,inner sep=3pt}]
+ \draw[->,very thick,hpcblue] (0,0) -- (14.2,0);
+ \foreach \x/\t in {1.2/{années 1970-80}, 4.8/{milieu des années 1990}, 8.4/{années 2000}, 12.0/{2010 et après}}{
+   \draw[hpcblue,thick] (\x,-0.1) -- (\x,0.1);
+   \node[font=\scriptsize\bfseries,anchor=north] at (\x,-0.15) {\t};}
+ \node[era,anchor=south] at (1.2,0.4) {\textbf{Machines vectorielles}\\ quelques processeurs très puissants\\ (Cray-1, Cyber 205)};
+ \node[era,anchor=south] at (4.8,0.4) {\textbf{Clusters de microprocesseurs}\\ des milliers de processeurs plus simples prennent le relais ; MPP (Connection Machine, puis BlueGene)};
+ \node[era,anchor=south] at (8.4,0.4) {\textbf{Domination du x86, multicœur}\\ les puces des serveurs ressemblent aux puces grand public ; le nombre de cœurs par socket augmente vite};
+ \node[era,anchor=south] at (12.0,0.4) {\textbf{Accélérateurs (GPU)}\\ Roadrunner : premier pétaflop ; Tianhe-1A, en tête du TOP500 en 2010 (environ 2,5 Pflop/s), avec des GPU NVIDIA};
+\end{tikzpicture}
+
+\medskip
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\textbf{Banalisation} : à partir du milieu des années 1990, les supercalculateurs deviennent des assemblages de composants proches de ceux des ordinateurs du commerce. La puissance vient du \textbf{nombre} de nœuds.
+\end{column}
+\begin{column}{0.48\textwidth}
+\textbf{Conséquence pour les programmeurs} : la performance n'est plus \og gratuite \fg. Depuis le multicœur, le parallélisme doit être \textbf{exprimé explicitement} (MPI, OpenMP, CUDA).
+\end{column}
+\end{columns}
+\src{\eij{}, sections 2.3.1.1, 2.3.3, 2.11.4.1 et 2.11.5.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Mesurer et classer : le TOP500}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+Depuis 1993, le \textbf{TOP500} classe les machines les plus puissantes, \textbf{deux fois par an} (juin, novembre), selon le benchmark \textbf{HPL} (\emph{High Performance Linpack}) : résolution d'un système linéaire dense par factorisation LU.
+
+\medskip
+\begin{block}{Liste de juin 2026 (67\textsuperscript{e} édition)}
+\begin{tabular}{@{}cL{2.3cm}L{2.6cm}@{}}
+\textbf{1} & LineShine & Shenzhen (Chine), 2,198 Eflop/s, 13\,789\,440 cœurs, CPU uniquement\\
+\textbf{2} & El Capitan & HPE, AMD Instinct MI300A\\
+\textbf{3} & Frontier & HPE, AMD Instinct MI250X\\
+\end{tabular}
+
+\smallskip
+\textbf{Cinq systèmes} dépassent 1 Eflop/s sur HPL.
+\end{block}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{alertblock}{HPL ne dit pas tout}
+HPL est dominé par le produit matrice-matrice : beaucoup de calcul pour peu de données (\textbf{intensité arithmétique élevée}), d'où 60 à 90\,\% de la crête.
+
+\smallskip
+Sur la même machine, le benchmark \textbf{HPCG} (gradient conjugué, limité par la mémoire) donne \textbf{22,0 Pflop/s} pour LineShine, soit environ \textbf{1\,\%} de ses 2,198 Eflop/s en HPL.
+\end{alertblock}
+\textbf{Retenir} : la performance réelle d'un code dépend de sa structure. Un solveur itératif creux ne ressemble pas à Linpack.
+\end{column}
+\end{columns}
+\src{\texttt{top500.org}, liste de juin 2026 (la liste de novembre est publiée à la conférence SC) ; \eij{}, section 2.11.4.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Tendances actuelles}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{1. Les accélérateurs (GPU) dominent le haut du classement}
+
+\smallskip
+Parmi les 10 premières machines : AMD Instinct (MI300A, MI250X), Intel Data Center GPU Max, NVIDIA (GH200, H100). Exceptions CPU seul : \textbf{LineShine} et \textbf{Fugaku}.
+
+\medskip
+\textbf{2. L'IA et le HPC partagent les mêmes machines}
+
+\smallskip
+Les GPU servent à la fois à la simulation et à l'apprentissage ; MesoNET et GENCI parlent désormais de HPC, d'\textbf{IA} et de \textbf{quantique}.
+
+\medskip
+\textbf{3. La géopolitique du calcul}
+
+\smallskip
+Les trois systèmes exascale américains (El Capitan, Frontier, Aurora), JUPITER en Europe, LineShine en Chine.
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{4. L'énergie devient une contrainte centrale}
+
+\smallskip
+Le \textbf{Green500} classe les machines selon le rapport performance par watt. Plus on ajoute de cœurs, plus la consommation compte : c'est le même \og mur de l'énergie \fg{} qui a imposé le multicœur.
+
+\medskip
+\begin{exampleblock}{Un exemple français}
+D'après MesoNET, KAIROS (CALMIP, Toulouse) et ROMEO (URCA, Reims) ont été classés 1\textsuperscript{er} et 2\textsuperscript{e} de la Green500.
+\end{exampleblock}
+
+\medskip
+\textbf{5. Machines hétérogènes}
+
+\smallskip
+Un nœud mêle CPU et GPU, parfois d'architectures différentes : programmer devient plus difficile, d'où l'intérêt de bibliothèques et de modèles portables.
+\end{column}
+\end{columns}
+\src{\texttt{top500.org} (juin 2026) ; \texttt{mesonet.fr} ; \eij{}, section 2.11.5 (calcul hétérogène).}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{L'écosystème : du niveau européen au niveau régional}
+\begin{columns}[T]
+\begin{column}{0.40\textwidth}
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+ \fill[hpcblue!70]   (2.0,3.0) -- (1.0,1.8) -- (3.0,1.8) -- cycle;
+ \fill[hpcgreen!55]  (1.0,1.8) -- (0.0,0.6) -- (4.0,0.6) -- (3.0,1.8) -- cycle;
+ \fill[hpcorange!55] (0.0,0.6) -- (-1.0,-0.6) -- (5.0,-0.6) -- (4.0,0.6) -- cycle;
+ \node[font=\scriptsize\bfseries,white] at (2.0,2.1) {Europe};
+ \node[font=\scriptsize\bfseries,white] at (2.0,1.2) {National};
+ \node[font=\scriptsize\bfseries,white] at (2.0,0.0) {Régional};
+ \node[font=\tiny,align=center,anchor=north] at (2.0,-0.75) {peu de très grosses machines\\ \dots{} beaucoup de machines moyennes};
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.58\textwidth}
+\begin{tabular}{@{}L{1.5cm}L{6.0cm}@{}}
+\toprule
+\textbf{Europe} & \textbf{EuroHPC JU} : initiative de l'UE, des pays européens et de partenaires privés. \textbf{JUPITER} (Jülich, Allemagne) : exascale, 1 Eflop/s soutenu. Pré-exascale : LUMI (Finlande), LEONARDO (Italie), MareNostrum 5 (Espagne). \textbf{Alice Recoque} (CEA/TGCC, France) : exascale franco-européen, \emph{planifié}.\\
+\midrule
+\textbf{National} & \textbf{GENCI} (Grand équipement national de calcul intensif) : moyens de calcul pour la recherche ouverte et l'industrie. 10\,000 projets scientifiques, 237 Pflop/s, 4 milliards d'heures de calcul allouées en 2025. Demandes d'heures via \texttt{edari.fr}.\\
+\midrule
+\textbf{Régional} & \textbf{MesoNET}, \og le mésocentre des mésocentres \fg{} : HPC, IA et quantique pour la recherche, la formation et les entreprises ; stockage fédéré ; support mutualisé.\\
+\bottomrule
+\end{tabular}
+\end{column}
+\end{columns}
+\src{\texttt{eurohpc-ju.europa.eu} ; \texttt{genci.fr} ; \texttt{mesonet.fr} (consultés le 16/11/2026).}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Où se situe Zen\,?}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Zen est une machine du service \og Code-Formation \fg{} de MesoNET} (d'après la structure de la documentation : \texttt{code\_form/zen}).
+
+\medskip
+MesoNET décrit ce service comme une \textbf{infrastructure distribuée} pour le développement d'applications scientifiques, les entreprises et la \textbf{formation au HPC et à l'IA}.
+
+\medskip
+Cette machine sert à développer et à se former : l'objectif est d'\textbf{apprendre} la chaîne complète du HPC, que vous retrouverez sur les machines plus grosses.
+
+\medskip
+\textbf{Accès} : un compte MesoNET (eduGAIN), un projet de formation, une clé SSH ; connexion à \texttt{zen.univ-lille.fr} (voir la partie précédente).
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{block}{Ce qui est transposable}
+\begin{itemize}
+\item la connexion SSH par clé ;
+\item les nœuds de \textbf{connexion} et de \textbf{calcul} ;
+\item l'ordonnanceur \textbf{Slurm} ;
+\item les \textbf{modules} (compilateurs, bibliothèques) ;
+\item les \textbf{allocations} d'heures sur les grands centres.
+\end{itemize}
+\end{block}
+\begin{alertblock}{À retenir}
+Un supercalculateur est une ressource \textbf{partagée} : on réserve des nœuds, on soumet un job, on attend son tour. On ne \og lance pas un programme \fg{} comme sur son ordinateur.
+\end{alertblock}
+\end{column}
+\end{columns}
+\src{\texttt{mesonet.fr} (service Code-Formation) ; documentation MesoNET de Zen ; liens de la partie précédente.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Comment travaille-t-on sur un supercalculateur\,?}
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+  wf/.style={draw=hpcblue,fill=hpcblue!12,rounded corners=3pt,minimum width=2.3cm,minimum height=1.1cm,align=center,font=\footnotesize},
+  arr/.style={-{Stealth},thick,hpcorange}]
+ \node[wf] (a) at (0,0) {1. Se connecter\\ \texttt{ssh} (clé)};
+ \node[wf] (b) at (3.0,0) {2. Préparer\\ \texttt{module load}\\ compiler};
+ \node[wf] (c) at (6.0,0) {3. Soumettre\\ \texttt{sbatch}\\ script Slurm};
+ \node[wf,fill=hpcorange!20] (d) at (9.0,0) {4. Attendre\\ file d'attente\\ \texttt{squeue}};
+ \node[wf,fill=hpcgreen!20] (e) at (12.0,0) {5. Calcul\\ nœuds de calcul};
+ \node[wf] (f) at (6.0,-1.9) {6. Récupérer\\ et analyser\\ les résultats};
+ \draw[arr] (a) -- (b); \draw[arr] (b) -- (c); \draw[arr] (c) -- (d); \draw[arr] (d) -- (e);
+ \draw[arr] (e) |- (f);
+ \draw[arr,dashed] (f) -| (b);
+ \node[font=\tiny,hpcorange,anchor=east] at (3.5,-1.3) {on itère};
+ \node[font=\tiny,anchor=south,hpcblue] at (3.0,0.7) {nœud de connexion};
+ \node[font=\tiny,anchor=south,hpcgreen] at (12.0,0.7) {nœuds de calcul};
+\end{tikzpicture}
+
+\medskip
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+\textbf{Mode batch} : un script décrit le job (nombre de nœuds, durée, commande) et l'ordonnanceur l'exécute quand les ressources sont libres.
+
+\smallskip
+\textbf{Mode interactif} : on réserve des nœuds pour une courte session de mise au point (petits jobs courts, nœuds non garantis).
+\end{column}
+\begin{column}{0.48\textwidth}
+\textbf{Sur le nœud de connexion} (partagé par de nombreux utilisateurs) : compiler, post-traiter, soumettre. \textbf{Pas de calcul parallèle.}
+
+\smallskip
+\textbf{Unité de compte sur les grands centres} : l'heure de calcul (cœurs $\times$ durée). Un calcul mal dimensionné consomme des heures pour rien.
+\end{column}
+\end{columns}
+\src{V.~Eijkhout, \emph{Supercomputer Clusters}, 2026 PCSE, CC-BY~4.0 (login nodes, batch, interactif) ; \texttt{genci.fr} (heures de calcul).}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{La boîte à outils du HPC}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{tabular}{@{}L{2.4cm}L{5.0cm}@{}}
+\toprule
+\textbf{Langages} & \textbf{C, C++, Fortran} pour la performance ; \textbf{Python} pour le pilotage, l'analyse et le post-traitement\\
+\midrule
+\textbf{Parallélisme} & \textbf{MPI} (mémoire distribuée), \textbf{OpenMP} (mémoire partagée), CUDA et autres modèles pour GPU\\
+\midrule
+\textbf{Bibliothèques} & algèbre linéaire (BLAS, LAPACK), solveurs (PETSc), entrées-sorties (HDF5), FFT\\
+\midrule
+\textbf{Chaîne de build} & compilateurs, \textbf{CMake}, \textbf{modules}, Git\\
+\midrule
+\textbf{Gestion des jobs} & \textbf{Slurm}\\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{block}{Dans ce cours}
+\begin{itemize}
+\item \textbf{Fortran} et \textbf{C++} pour les codes de TP ;
+\item \textbf{Python} pour tracer et analyser (animations, \texttt{load\_var}) ;
+\item \textbf{CMake} pour construire ;
+\item \textbf{HDF5} pour écrire les résultats ;
+\item \textbf{MPI} pour distribuer ;
+\item \textbf{Slurm} pour exécuter sur Zen.
+\end{itemize}
+\end{block}
+\begin{exampleblock}{Pourquoi Fortran en 2026\,?}
+Langage historique du calcul scientifique, très bien optimisé par les compilateurs pour les tableaux : on le rencontrera dans beaucoup de codes de recherche existants.
+\end{exampleblock}
+\end{column}
+\end{columns}
+\src{\eij{}, volume 2 (MPI, OpenMP en C, C++, Fortran, Python ; PETSc, Kokkos, SYCL) et volume 4 (compilateurs, build, Git) ; contenu du dépôt du cours.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Plan du module}
+\centering
+\small
+\begin{tabular}{@{}L{1.9cm}L{3.6cm}L{6.8cm}@{}}
+\toprule
+\textbf{Séance} & \textbf{Module} & \textbf{Contenu}\\
+\midrule
+S1, cours 1 & Environnement & panorama du HPC (cette partie), connexion à Zen, chaîne de compilation, Slurm avec CMake\\
+S1, cours 2 & Performance séquentielle & équation d'onde 1D/2D, layout mémoire, localité et cache\\
+S2 & Performance séquentielle & tiling, roofline\\
+S3 à S5 & MPI & point à point, collectives ; TP ping-pong, halo 1D, quadrature, slabs\\
+--- & Projet & dérivées distribuées (decomp2d), gradient conjugué, communications P2P\\
+\bottomrule
+\end{tabular}
+
+\bigskip
+\begin{block}{Ce que vous saurez faire à la fin}
+Comprendre une machine parallèle, \textbf{mesurer} la performance d'un code, l'\textbf{améliorer} sur un cœur, puis le \textbf{distribuer} avec MPI sur plusieurs nœuds.
+\end{block}
+\src{\texttt{planning.md} du dépôt du cours.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Sources et licence}
+\textbf{Ce support s'appuie sur les travaux de Victor Eijkhout} (Texas Advanced Computing Center), série \emph{The Art of HPC}, publiée sous licence \textbf{CC-BY~4.0} : \texttt{https://theartofhpc.com}.
+
+\medskip
+\begin{itemize}
+\item \emph{The Art of HPC, Volume 1 : The Science of Computing} : sections 2.3 (architectures parallèles), 2.6 (programmation parallèle), 2.11 (TOP500, calcul hétérogène).
+\item Cours \emph{A Taste of Scientific Computing} et \emph{Supercomputer Clusters}.
+\end{itemize}
+
+\medskip
+\textbf{Données d'actualité} (consultées le 16/11/2026) : \texttt{top500.org} (liste de juin 2026), \texttt{genci.fr}, \texttt{mesonet.fr}, \texttt{eurohpc-ju.europa.eu/supercomputers}. Ces chiffres évoluent : \textbf{à mettre à jour} après chaque liste TOP500.
+
+\medskip
+\textbf{Modifications} : contenu traduit en français, condensé et réorganisé ; figures dessinées pour ce cours ; les exemples d'applications, la mise en perspective pour les mathématiques appliquées et le plan du module sont de l'auteur de ce support.
+
+\bigskip
+{\scriptsize Licence CC-BY~4.0 : \texttt{creativecommons.org/licenses/by/4.0/}. Toute réutilisation de ce support doit conserver cette attribution.}
+\end{frame}
+
+\end{document}

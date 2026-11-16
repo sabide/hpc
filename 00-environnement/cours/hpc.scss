@@ -1,0 +1,38 @@
+/*-- scss:defaults --*/
+// Police de base réduite (40px par défaut dans Quarto/reveal.js)
+$presentation-font-size-root: 26px;
+$presentation-heading-font-weight: 600;
+$presentation-h1-font-size: 1.9em;
+$presentation-h2-font-size: 1.35em;
+$presentation-h3-font-size: 1.1em;
+$code-block-font-size: 0.7em;
+
+/*-- scss:rules --*/
+.reveal h2 {
+  margin-bottom: 0.4em;
+}
+
+.reveal ul,
+.reveal ol {
+  margin-top: 0.2em;
+  margin-bottom: 0.4em;
+}
+
+.reveal li {
+  margin-bottom: 0.15em;
+}
+
+.reveal .callout {
+  margin-top: 0.5em;
+  margin-bottom: 0.5em;
+  font-size: 0.9em;
+}
+
+.reveal pre {
+  margin: 0.4em 0;
+  width: 100%;
+}
+
+.reveal table {
+  font-size: 0.85em;
+}

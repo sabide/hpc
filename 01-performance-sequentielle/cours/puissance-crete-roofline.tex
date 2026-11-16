@@ -1,0 +1,525 @@
+% Puissance crête, boucles, options de compilation, roofline — séance de 1 h
+% Contenu adapté de V. Eijkhout, « The Art of HPC » (https://theartofhpc.com), CC-BY 4.0.
+% Modèle roofline : S. Williams, A. Waterman, D. Patterson, CACM 52(4), 2009.
+% Exercices : ../tp/01-roofline/enonce.md
+\documentclass[8pt,aspectratio=169]{beamer}
+
+\usepackage[french]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+\usepackage{booktabs,array}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usetikzlibrary{babel,positioning,calc,arrows.meta}
+
+\usetheme[progressbar=frametitle,numbering=fraction,block=fill]{metropolis}
+\metroset{sectionpage=none,titleformat=regular}
+\setbeamersize{text margin left=0.55cm,text margin right=0.55cm}
+
+\definecolor{hpcblue}{HTML}{1F4E79}
+\definecolor{hpcorange}{HTML}{C55A11}
+\definecolor{hpcgreen}{HTML}{3B7D23}
+\definecolor{hpcgrey}{HTML}{D9D9D9}
+\setbeamercolor{palette primary}{bg=hpcblue,fg=white}
+\setbeamercolor{progress bar}{fg=hpcorange,bg=hpcgrey}
+\setbeamercolor{frametitle}{bg=hpcblue,fg=white}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\src}[1]{\vfill{\tiny\color{gray}Source : #1\par}}
+\newcommand{\eij}{V.~Eijkhout, \emph{The Art of HPC}, CC-BY~4.0}
+\setlength{\parskip}{2pt}
+\setbeamertemplate{itemize items}[circle]
+
+\title{Puissance crête, boucles, options de compilation, roofline}
+\subtitle{Séance de 1\,h avec exercices de prise en main}
+\author{HPC --- 2026-2027}
+\date{Performance séquentielle}
+
+\begin{document}
+
+\maketitle
+
+% ---------------------------------------------------------------
+\begin{frame}{Déroulé de l'heure}
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+\begin{tabular}{@{}rL{2.0cm}L{4.5cm}@{}}
+\toprule
+\textbf{Durée} & \textbf{Partie} & \textbf{Contenu}\\
+\midrule
+5\,min & Prise en main & compiler et lancer \texttt{kernels}\\
+10\,min & \textbf{Exercice 1} & puissance crête d'un cœur\\
+10\,min & \textbf{Exercice 2} & ordre des boucles\\
+15\,min & \textbf{Exercice 3} & options de compilation\\
+15\,min & \textbf{Exercice 4} & roofline\\
+5\,min & Bilan & ce qu'il faut retenir\\
+\bottomrule
+\end{tabular}
+
+\medskip
+Chaque exercice est précédé de quelques minutes de cours (ces diapos), puis on mesure.
+\end{column}
+\begin{column}{0.43\textwidth}
+\begin{block}{Un seul programme pour toute la séance}
+\texttt{src/kernels.cpp} mesure des noyaux de quelques lignes et affiche, pour chacun :
+\begin{itemize}
+\item le débit de calcul (\textbf{GFLOP/s}) ;
+\item le débit mémoire (\textbf{GB/s}) ;
+\item l'\textbf{intensité arithmétique} (flop/octet).
+\end{itemize}
+\end{block}
+\begin{alertblock}{Règle de la séance}
+Avant chaque mesure, \textbf{annoncez le résultat attendu}. Un écart avec la prédiction est une information : c'est là qu'on apprend.
+\end{alertblock}
+\end{column}
+\end{columns}
+\src{énoncé : \texttt{tp/01-roofline/enonce.md}.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Puissance crête d'un cœur}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{block}{Formule}
+\[
+P_{\text{crête}} = f \times n_{\text{FMA}} \times w \times 2
+\]
+\end{block}
+\begin{itemize}
+\item $f$ : fréquence d'horloge ;
+\item $n_{\text{FMA}}$ : unités FMA par cœur (souvent 2, à vérifier pour le modèle) ;
+\item $w$ : doubles par registre vectoriel ;
+\item $2$ : un FMA fait une multiplication \textbf{et} une addition.
+\end{itemize}
+
+\medskip
+\begin{tabular}{@{}lcc@{}}
+\toprule
+Jeu d'instructions & Registre & $w$ (doubles)\\
+\midrule
+NEON (ARM) & 128 bits & 2\\
+AVX2 (x86) & 256 bits & 4\\
+AVX-512 (x86) & 512 bits & 8\\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{Exemple} : 2,5\,GHz, 2 unités FMA, AVX2 ($w=4$)
+\[
+2{,}5 \times 2 \times 4 \times 2 = 40\ \text{Gflop/s par cœur}
+\]
+Un nœud de 2 sockets de 32 cœurs : $64 \times 40 = 2{,}56$ Tflop/s.
+
+\medskip
+\begin{alertblock}{Une borne, pas une prédiction}
+Pour s'en approcher, il faut du \textbf{calcul pur}, des instructions \textbf{vectorielles}, des FMA et \textbf{assez d'opérations indépendantes} pour masquer la latence. Très peu de codes y arrivent.
+\end{alertblock}
+\end{column}
+\end{columns}
+\src{\eij{}, vol.~1, sections 1.2.1.4 et 6.1 ; cours \emph{Processor Architecture} (FMA, vecteurs).}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Exercice 1 : la puissance crête de votre cœur}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Consignes}
+\begin{enumerate}
+\item \texttt{lscpu} : modèle, fréquence, jeux d'instructions (\texttt{avx2}, \texttt{avx512f}, \texttt{neon}).
+\item Cherchez le nombre d'unités FMA du modèle ; \textbf{calculez} $P_{\text{crête}}$ pour un cœur.
+\item \textbf{Mesurez} : \texttt{./kernels fma\_peak}.
+\item Recompilez \textbf{sans} \texttt{-march=native}. Que se passe-t-il\,?
+\item (AVX-512) recompilez avec \texttt{-DVW=8}.
+\end{enumerate}
+\begin{block}{Commandes}
+\begin{verbatim}
+cd src
+g++ -std=gnu++17 -O3 -march=native \
+    kernels.cpp -o kernels
+lscpu | grep -E "Model name|MHz|Flags"
+./kernels fma_peak
+\end{verbatim}
+\end{block}
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{À noter}
+\begin{itemize}
+\item Peak théorique : \dots{} Gflop/s
+\item Peak mesuré : \dots{} Gflop/s
+\item Rapport : \dots{}\,\%
+\end{itemize}
+
+\medskip
+\textbf{Questions}
+\begin{itemize}
+\item Quel pourcentage de la crête obtenez-vous\,? Donnez \textbf{deux} raisons possibles de l'écart.
+\item Combien vaut la crête d'un \textbf{nœud entier}\,?
+\end{itemize}
+
+\medskip
+\begin{alertblock}{Pourquoi \texttt{gnu++17} et pas \texttt{c++17}\,?}
+Avec GCC, le mode strict interdit de fusionner $a\,b+c$ en un FMA : la crête mesurée serait fausse.
+\end{alertblock}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Les boucles : l'ordre des indices compte}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+Un tableau 2D est stocké \textbf{ligne par ligne} en C/C++ (\emph{row-major}) : $A[i][j]$ est à l'adresse $i\,n+j$.
+
+\medskip
+\centering
+\begin{tikzpicture}[x=0.55cm,y=0.55cm,
+  cell/.style={draw,minimum width=0.5cm,minimum height=0.5cm,inner sep=0pt,font=\tiny}]
+ \foreach \i in {0,1,2,3}{\foreach \j in {0,1,2,3}{
+   \node[cell,fill=hpcblue!15] at (\j,-\i) {\the\numexpr\i*4+\j\relax};}}
+ \draw[->,thick,hpcgreen] (-0.3,0.45) -- (3.3,0.45);
+ \node[font=\tiny,hpcgreen,anchor=south] at (1.5,0.5) {\texttt{j} intérieur : pas de 1};
+ \draw[->,thick,hpcorange] (4.0,0.3) -- (4.0,-3.3);
+ \node[font=\tiny,hpcorange,anchor=west,align=left] at (4.1,-1.5) {\texttt{i} intérieur :\\ saut de $n$};
+\end{tikzpicture}
+
+\medskip
+\raggedright
+Une \textbf{ligne de cache} fait 64 octets (8 doubles) : on charge 8 voisins \textbf{contigus}. Un saut de $n$ éléments n'en utilise qu'\textbf{un} sur 8.
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{block}{Les deux noyaux de l'exercice}
+\begin{tabular}{@{}L{3.4cm}L{3.4cm}@{}}
+\textbf{scale\_rows} & \textbf{scale\_cols}\\
+\texttt{for i: for j:} & \texttt{for j: for i:}\\
+\texttt{B[i*n+j] = 2*A[i*n+j]} & \texttt{B[i*n+j] = 2*A[i*n+j]}\\
+\end{tabular}
+\end{block}
+Même calcul, même nombre d'opérations, \textbf{seul l'ordre change}.
+
+\medskip
+\begin{alertblock}{Et en Fortran\,?}
+Le stockage est \textbf{colonne par colonne} : l'indice rapide est le \emph{premier}. C'est l'ordre des boucles, pas le langage, qui doit suivre la mémoire.
+\end{alertblock}
+\begin{exampleblock}{Piège : les puissances de 2}
+Quand $8n$ est une puissance de 2, les éléments d'une colonne se disputent les mêmes emplacements du cache (\emph{associativité}). On le mesurera.
+\end{exampleblock}
+\end{column}
+\end{columns}
+\src{\eij{}, cours \emph{Processor Architecture} (lignes de cache, effet du pas, associativité : « ne pas utiliser de puissances de 2 »).}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Exercice 2 : ordre des boucles}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Consignes}
+\begin{enumerate}
+\item \texttt{./kernels scale\_rows} puis \texttt{./kernels scale\_cols} (n = 4096).
+\item Faites varier $n$ :
+\end{enumerate}
+\begin{verbatim}
+for n in 128 256 512 1024 2048 4096; do
+  ./kernels scale_rows $n
+  ./kernels scale_cols $n
+done | grep -v '^#'
+\end{verbatim}
+\begin{enumerate}\setcounter{enumi}{2}
+\item Tailles \textbf{voisines} des puissances de 2 :
+\end{enumerate}
+\begin{verbatim}
+for n in 128 129 1024 1025 4096 4097; do
+  ./kernels scale_rows $n
+  ./kernels scale_cols $n
+done | grep -v '^#'
+\end{verbatim}
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{Prédisez d'abord} : lequel sera le plus rapide, et d'un facteur combien\,?
+
+\medskip
+\textbf{Questions}
+\begin{itemize}
+\item Rapport de débit à $n=4096$\,?
+\item Combien de doubles utilisés par ligne de cache chargée dans \texttt{scale\_cols}\,?
+\item À $n=128$ la matrice tient dans le cache : pourquoi \texttt{scale\_cols} reste-t-il lent\,?
+\item Que se passe-t-il entre $n=128$ et $n=129$\,? Quelle consigne pratique en déduire\,?
+\item Fortran : quel ordre de boucles\,?
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Options de compilation : ce qu'elles font}
+\begin{columns}[T]
+\begin{column}{0.58\textwidth}
+\begin{tabular}{@{}L{2.2cm}L{5.2cm}@{}}
+\toprule
+\textbf{Option} & \textbf{Effet}\\
+\midrule
+\texttt{-O0} & aucune optimisation : tout est relu et réécrit en mémoire\\
+\texttt{-O1}, \texttt{-O2} & registres, déroulage, élimination de calculs redondants\\
+\texttt{-O3} & plus agressif : \textbf{vectorisation}, transformations de boucles\\
+\texttt{-march=native} & utilise toutes les instructions de \emph{cette} machine : FMA, AVX2, AVX-512\\
+\texttt{-ffast-math} & autorise à \textbf{réordonner} les opérations flottantes\\
+\texttt{-fopt-info-vec-*} (GCC), \texttt{-Rpass=loop-vectorize} (Clang) & rapport : quelles boucles ont été vectorisées, et pourquoi pas\\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.4\textwidth}
+\begin{block}{Compiler pour la machine}
+\texttt{-march=native} produit un exécutable qui peut ne \textbf{pas tourner} sur un autre processeur. Compilez sur le nœud de calcul qui exécutera le code.
+\end{block}
+\begin{alertblock}{\texttt{-ffast-math}}
+Gain réel sur les réductions, mais \textbf{les résultats changent} (voir diapo suivante), et les NaN/Inf ne sont plus gérés. À employer en connaissance de cause.
+\end{alertblock}
+\end{column}
+\end{columns}
+\src{documentation GCC et Clang ; \eij{}, vol.~4 (compilateurs), et cours \emph{Processor Architecture}.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Pourquoi un produit scalaire ne se vectorise pas tout seul}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Une réduction}
+\[
+s \leftarrow s + x_i\,y_i,\qquad i=0,\dots,n-1
+\]
+Chaque addition \textbf{dépend de la précédente} : l'unité flottante attend la fin de l'addition précédente (latence de 3 à 4 cycles), quelle que soit sa largeur.
+
+\medskip
+Pour aller plus vite, il faut des \textbf{sommes partielles indépendantes} :
+\[
+s = (s_0 + s_1) + (s_2 + s_3)
+\]
+Mais \textbf{ce n'est pas la même somme}.
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{block}{L'addition flottante n'est pas associative}
+\[
+(0{,}1 + 0{,}2) + 0{,}3 = 0{,}6000000000000001
+\]
+\[
+0{,}1 + (0{,}2 + 0{,}3) = 0{,}6
+\]
+\end{block}
+Le compilateur n'a donc \textbf{pas le droit} de réordonner une somme sans votre permission.
+\begin{itemize}
+\item sans \texttt{-ffast-math} : somme dans l'ordre, lente ;
+\item avec \texttt{-ffast-math} : sommes partielles vectorielles, rapide, \textbf{résultat légèrement différent}, qui dépend de la largeur des vecteurs, donc de la machine.
+\end{itemize}
+\textbf{Conséquence pour vous} : reproductibilité, tests de non-régression, algorithmes compensés (Kahan).
+\end{column}
+\end{columns}
+\src{arithmétique flottante IEEE~754 ; \eij{}, vol.~1, chapitre sur l'arithmétique des ordinateurs.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Exercice 3 : options de compilation}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+\begin{verbatim}
+for f in "-O0" "-O1" "-O2" "-O3" \
+         "-O3 -march=native" \
+         "-O3 -march=native -ffast-math"; do
+  name=$(echo "$f" | tr -d ' =-')
+  g++ -std=gnu++17 $f kernels.cpp \
+      -o kernels_$name
+done
+\end{verbatim}
+Relevez les GFLOP/s de \texttt{fma\_peak}, \texttt{axpy}, \texttt{dot}, \texttt{stencil} (\texttt{./kernels\_XXX dot 10000000}).
+
+\medskip
+\begin{tabular}{@{}L{3.2cm}cccc@{}}
+\toprule
+options & fma & axpy & dot & sten.\\
+\midrule
+\texttt{-O0} & & & &\\
+\texttt{-O2} & & & &\\
+\texttt{-O3 -march=native} & & & &\\
+\texttt{\dots{} -ffast-math} & & & &\\
+\bottomrule
+\end{tabular}
+\end{column}
+\begin{column}{0.44\textwidth}
+\textbf{Rapport de vectorisation} de la boucle de \texttt{dot} (voir l'énoncé pour la commande) :
+\begin{itemize}
+\item GCC : \emph{couldn't vectorize loop}
+\item Clang : \emph{vectorized loop}, mais la somme reste ordonnée
+\item avec \texttt{-ffast-math} : comparez
+\end{itemize}
+
+\medskip
+\textbf{Questions}
+\begin{itemize}
+\item Quelle option fait gagner le plus, sur quel noyau\,?
+\item Pourquoi \texttt{dot} ne gagne-t-il presque rien sans \texttt{-ffast-math}\,?
+\item L'addition flottante est-elle associative\,? Qu'est-ce que \texttt{-ffast-math} change au résultat\,?
+\item Peut-on toujours l'utiliser\,?
+\end{itemize}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Le modèle roofline}
+\begin{columns}[T]
+\begin{column}{0.48\textwidth}
+Un noyau d'\textbf{intensité arithmétique} $I$ (flop par octet transféré depuis la mémoire) ne peut pas dépasser :
+\[
+P \le \min\bigl(P_{\text{crête}},\ \beta\, I\bigr)
+\]
+avec $\beta$ la bande passante mémoire.
+
+\medskip
+\textbf{Point de rupture} : $I^* = P_{\text{crête}} / \beta$
+\begin{itemize}
+\item $I < I^*$ : limité par la \textbf{mémoire} ;
+\item $I > I^*$ : limité par le \textbf{calcul}.
+\end{itemize}
+
+\medskip
+\begin{block}{À quoi ça sert}
+Dire en 30 secondes \textbf{ce qu'il est utile d'optimiser} : si un noyau est limité par la mémoire, vectoriser davantage ne sert à rien ; s'il est sous le toit, quelque chose bride l'implémentation.
+\end{block}
+\end{column}
+\begin{column}{0.5\textwidth}
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+ \draw[->] (0,0) -- (6.4,0) node[right,font=\scriptsize] {$I$ (flop/octet)};
+ \draw[->] (0,0) -- (0,4.0) node[above,font=\scriptsize] {perf.};
+ \fill[hpcorange!12] (0,0) -- (3.3,0) -- (3.3,3.3) -- (0.3,0.3) -- cycle;
+ \fill[hpcblue!10] (3.3,0) -- (6.2,0) -- (6.2,3.3) -- (3.3,3.3) -- cycle;
+ \draw[very thick,hpcblue] (0.3,0.3) -- (3.3,3.3) -- (6.2,3.3);
+ \draw[dashed,gray] (3.3,3.3) -- (3.3,0);
+ \node[font=\scriptsize,hpcorange,align=center] at (1.9,0.75) {limité par\\ la mémoire};
+ \node[font=\scriptsize,hpcblue,align=center] at (4.8,1.5) {limité par\\ le calcul};
+ \node[font=\scriptsize,anchor=north] at (3.3,-0.05) {$I^*$};
+ \node[font=\scriptsize,hpcblue,anchor=south] at (5.0,3.35) {$P_{\text{crête}}$};
+ \node[font=\scriptsize,hpcblue,rotate=45,anchor=south] at (1.4,1.5) {$\beta\,I$};
+\end{tikzpicture}
+
+{\scriptsize Axes en échelle logarithmique ; schéma qualitatif.}
+\end{column}
+\end{columns}
+\src{S.~Williams, A.~Waterman, D.~Patterson, \emph{Roofline : an insightful visual performance model for multicore architectures}, CACM 52(4), 2009 ; \eij{}, vol.~1, sections 1.6.1 et 6.1.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Intensité arithmétique des noyaux de la séance}
+\begin{columns}[T]
+\begin{column}{0.56\textwidth}
+Un double fait 8 octets ; on suppose chaque donnée lue ou écrite \textbf{une seule fois}.
+
+\smallskip
+\begin{tabular}{@{}L{3.4cm}ccL{1.0cm}@{}}
+\toprule
+\textbf{Noyau} & \textbf{flops} & \textbf{octets} & $I$\\
+\midrule
+\texttt{vadd} $c_i=a_i+b_i$ & 1 & 24 & 1/24\\
+\texttt{axpy} $y_i=a\,x_i+y_i$ & 2 & 24 & 1/12\\
+\texttt{dot} $s\mathrel{+}=x_i y_i$ & 2 & 16 & 1/8\\
+\texttt{stencil} 3 points & 5 & 16 & 5/16\\
+\texttt{matmul} $n\times n$ & $2n^3$ & $24n^2$ & $n/12$\\
+\bottomrule
+\end{tabular}
+
+\medskip
+Les trois premiers sont \textbf{très en dessous} de $I^*$ : c'est la \textbf{mémoire} qui limite, jamais le calcul.
+\end{column}
+\begin{column}{0.42\textwidth}
+\begin{exampleblock}{Le lien avec l'équation d'onde}
+Le schéma en différences finies
+\[
+u_i' = a\,u_{i-1} + b\,u_i + c\,u_{i+1}
+\]
+est le noyau \texttt{stencil} : $I \approx 0{,}31$. C'est \textbf{sous} $I^*$ ou à son voisinage : sur un cœur de serveur $I^*$ est en général plus grand (crête plus haute, bande passante par cœur plus faible). À vérifier avec \textbf{vos} mesures.
+\end{exampleblock}
+\begin{alertblock}{Ce que ça implique}
+Un solveur d'EDP explicite est naturellement \textbf{limité par la mémoire}. Ajouter des cœurs sur un même nœud aide jusqu'à saturer la bande passante, pas au-delà. Pour aller plus loin : réduire le trafic (fusion de boucles, tiling) ou ajouter des \textbf{nœuds} (MPI).
+\end{alertblock}
+\end{column}
+\end{columns}
+\src{\eij{}, vol.~1, section 1.6.1 (intensité arithmétique, exemples \texttt{vadd}, \texttt{axpy}) ; modèle de trafic idéal, sans allocation en écriture.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Exercice 4 : placer les noyaux sur le roofline}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Avant de mesurer} : calculez $I$ pour \texttt{axpy}, \texttt{dot}, \texttt{matmul} (tableau précédent), et \textbf{annoncez} pour chaque noyau : mémoire ou calcul\,?
+
+\medskip
+\textbf{Mesure}
+\begin{verbatim}
+./sweep.sh ./kernels > resultats.txt
+python3 plot_roofline.py resultats.txt
+\end{verbatim}
+Le tableau donne $P_{\text{crête}}$, $\beta$, $I^*$, la borne et la mesure de chaque point. Sans matplotlib, le tableau s'affiche quand même.
+
+\medskip
+\textbf{Retraçage avec une option} : recompilez avec \texttt{-O3 -march=native -ffast-math}, relancez \texttt{sweep.sh}, retracez.
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{Questions}
+\begin{enumerate}
+\item Quelles sont votre crête, votre $\beta$ et votre $I^*$\,?
+\item Chaque noyau est-il limité par la mémoire ou le calcul\,? Votre prédiction était-elle juste\,?
+\item Pourquoi des points \textbf{au-dessus} du toit mémoire (petites tailles)\,?
+\item \texttt{dot} est très en dessous du toit : que se passe-t-il avec \texttt{-ffast-math}\,?
+\item \texttt{matmul} est du côté calcul mais n'atteint qu'une fraction de la crête : que lui manque-t-il\,? (Comptez les accès mémoire par FMA.)
+\item Où est le \texttt{stencil} de l'équation d'onde\,? Conséquence pour le solveur\,?
+\end{enumerate}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Bilan : ce qu'il faut retenir}
+\begin{columns}[T]
+\begin{column}{0.54\textwidth}
+\begin{enumerate}
+\item \textbf{Crête} d'un cœur $= f \times n_{\text{FMA}} \times w \times 2$ : un plafond, pas une prédiction.
+\item \textbf{Parcourez la mémoire dans l'ordre où elle est rangée} ; évitez les puissances de 2 comme dimension.
+\item \textbf{\texttt{-O2}/\texttt{-O3}} : gain d'un facteur 5 à 10 par rapport à \texttt{-O0}. \textbf{\texttt{-march=native}} compte surtout sur x86.
+\item Une \textbf{réduction} ne se vectorise qu'en changeant l'ordre des additions : \texttt{-ffast-math} ou plusieurs accumulateurs écrits à la main.
+\item \textbf{Roofline} : calculez $I$ avant d'optimiser. $I<I^*$, c'est la mémoire qui limite.
+\item \textbf{Mesurez} sur un nœud réservé et comparez-vous au toit.
+\end{enumerate}
+\end{column}
+\begin{column}{0.44\textwidth}
+\begin{block}{Pour aller plus loin}
+\begin{itemize}
+\item \texttt{demos/tiling-1} : produit matrice-matrice, ordres de boucles, \textbf{tiling}.
+\item Plusieurs accumulateurs dans \texttt{dot}, sans \texttt{-ffast-math}.
+\item Bande passante cœur par cœur avec OpenMP.
+\end{itemize}
+\end{block}
+\begin{exampleblock}{Séance suivante}
+\textbf{Tiling} : réutiliser les données depuis le cache pour monter dans le roofline. Puis \textbf{MPI} : quand un seul nœud ne suffit plus.
+\end{exampleblock}
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Sources et licence}
+\textbf{Ce support s'appuie sur les travaux de Victor Eijkhout} (Texas Advanced Computing Center), série \emph{The Art of HPC}, licence \textbf{CC-BY~4.0} : \texttt{https://theartofhpc.com}.
+
+\begin{itemize}
+\item Volume 1 : sections 1.2.1.4 (crête), 1.6.1 (intensité arithmétique), 6.1 (performance crête) ; cours \emph{Processor Architecture} (FMA, vecteurs, lignes de cache, associativité, roofline).
+\item Modèle roofline : S.~Williams, A.~Waterman, D.~Patterson, \emph{Roofline : an insightful visual performance model for multicore architectures}, \emph{Communications of the ACM} 52(4), 2009.
+\end{itemize}
+
+\medskip
+\textbf{Modifications} : contenu traduit et condensé ; figures dessinées pour ce cours ; programme \texttt{kernels.cpp}, exercices, mesures et corrigé de l'auteur de ce support.
+
+\medskip
+\textbf{Limites} : le programme de mesure a été validé sur ARM (Clang, g++\,13). Les valeurs absolues de l'énoncé dépendent de la machine ; ce sont les \textbf{rapports} qui comptent.
+
+\bigskip
+{\scriptsize Licence CC-BY~4.0 : \texttt{creativecommons.org/licenses/by/4.0/}. Toute réutilisation de ce support doit conserver cette attribution.}
+\end{frame}
+
+\end{document}

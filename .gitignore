@@ -22,3 +22,8 @@ projet/deps/*.tar.gz
 # Environnements Python locaux
 .venv/
 python_pkgs/
+
+# Quarto (rendu des slides)
+*_files/
+.quarto/
+00-environnement/cours/*.html

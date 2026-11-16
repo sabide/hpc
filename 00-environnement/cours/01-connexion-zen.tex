@@ -1,0 +1,328 @@
+% Accéder au cluster Zen : compte MesoNET, clé SSH, première connexion
+% Source : documentation MesoNET (mesonet.fr), consultée le 16/11/2026.
+\documentclass[8pt,aspectratio=169]{beamer}
+
+\usepackage[french]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+\usepackage{booktabs,array}
+\usepackage{tikz}
+\usetikzlibrary{babel,arrows.meta}
+
+\usetheme[progressbar=frametitle,numbering=fraction,block=fill]{metropolis}
+\metroset{sectionpage=none,titleformat=regular}
+\setbeamersize{text margin left=0.55cm,text margin right=0.55cm}
+
+\definecolor{hpcblue}{HTML}{1F4E79}
+\definecolor{hpcorange}{HTML}{C55A11}
+\definecolor{hpcgreen}{HTML}{3B7D23}
+\definecolor{hpcgrey}{HTML}{D9D9D9}
+\setbeamercolor{palette primary}{bg=hpcblue,fg=white}
+\setbeamercolor{progress bar}{fg=hpcorange,bg=hpcgrey}
+\setbeamercolor{frametitle}{bg=hpcblue,fg=white}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\src}[1]{\vfill{\tiny\color{gray}Source : #1\par}}
+\setlength{\parskip}{2pt}
+\setbeamertemplate{itemize items}[circle]
+
+\title{Accéder au cluster Zen}
+\subtitle{Compte MesoNET, clé SSH, première connexion}
+\author{HPC --- 2026-2027}
+\date{Séance 1}
+
+\begin{document}
+
+\maketitle
+
+% ---------------------------------------------------------------
+\begin{frame}{Objectif, vue d'ensemble et prérequis}
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+À la fin de cette partie, vous avez :
+\begin{enumerate}
+\item un \textbf{compte MesoNET} rattaché à votre établissement (eduGAIN) ;
+\item un \textbf{profil} complété dans le projet \emph{Zen -- Formation Zen} ;
+\item une \textbf{paire de clés SSH}, clé publique déposée sur le portail ;
+\item un \textbf{premier \texttt{ssh}} réussi vers \texttt{zen.univ-lille.fr}.
+\end{enumerate}
+
+\bigskip
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[
+  wf/.style={draw=hpcblue,fill=hpcblue!12,rounded corners=3pt,minimum width=1.85cm,minimum height=1.0cm,align=center,font=\footnotesize},
+  arr/.style={-{Stealth},thick,hpcorange}]
+ \node[wf] (a) at (0,0) {1. Mail\\ d'invitation};
+ \node[wf] (b) at (2.2,0) {2. Compte\\ MesoNET};
+ \node[wf] (c) at (4.4,0) {3. Profil\\ Zen};
+ \node[wf] (d) at (6.6,0) {4. Clés\\ SSH};
+ \node[wf,fill=hpcgreen!20] (e) at (8.8,0) {5. Connexion\\ à Zen};
+ \draw[arr] (a)--(b); \draw[arr] (b)--(c); \draw[arr] (c)--(d); \draw[arr] (d)--(e);
+\end{tikzpicture}}
+
+\raggedright\smallskip
+Étapes 1 à 3 dans le navigateur, étape 4 dans un terminal puis sur le portail, étape 5 dans un terminal.
+\end{column}
+\begin{column}{0.43\textwidth}
+\textbf{Prérequis}
+\begin{itemize}
+\item Être inscrit à la formation : \textbf{le responsable vous a invité} sur MesoNET.
+\item Avoir accès à l'adresse mail renseignée par le responsable (réception de l'invitation).
+\item Un terminal avec un client SSH :
+ \begin{itemize}
+ \item \textbf{Linux / macOS} : déjà installé ;
+ \item \textbf{Windows} : MobaXterm (Home, version portable).
+ \end{itemize}
+\end{itemize}
+\begin{block}{Note}
+Aucun mot de passe sur Zen : connexion \textbf{obligatoirement par clé SSH}.
+\end{block}
+\begin{alertblock}{Avertissement}
+Le mail d'invitation a une \textbf{date d'expiration}. Une invitation expirée ne permet plus l'accès : prévenez-moi rapidement.
+\end{alertblock}
+\end{column}
+\end{columns}
+\src{documentation MesoNET, pages \og accès étudiants \fg{} et \og connexion \fg{} de Zen (liens en dernière diapo).}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Étapes 1 à 3 : mail, compte MesoNET, profil}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{1. Le mail d'invitation}
+
+\smallskip
+Deux liens, à utiliser \textbf{dans l'ordre} :
+
+\smallskip
+\begin{tabular}{@{}cL{2.6cm}L{3.3cm}@{}}
+\toprule
+Ordre & Lien & Usage\\
+\midrule
+1 & Création de compte & Créer le compte MesoNET\\
+2 & Profil & À ouvrir \textbf{après} validation du compte\\
+\bottomrule
+\end{tabular}
+
+\bigskip
+\textbf{2. Créer le compte MesoNET}
+
+\smallskip
+Cliquez sur le \textbf{premier lien} et suivez la procédure :
+\begin{itemize}
+\item \textbf{Identification eduGAIN} : tapez quelques lettres, votre établissement apparaît dans le menu.
+ \begin{itemize}
+ \item Absent\,? Demandez à votre responsable. \textbf{Pas de compte local.}
+ \end{itemize}
+\item \textbf{Champ \og Notes \fg} (obligatoire) : \textbf{intitulé de la formation} et \textbf{établissement}.
+\end{itemize}
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{3. Compléter le profil}
+
+\smallskip
+Après validation du compte, ouvrez le \textbf{second lien} :
+
+\smallskip
+\begin{tabular}{@{}L{2.5cm}L{4.2cm}@{}}
+\toprule
+Champ & Valeur\\
+\midrule
+Laboratoire & \texttt{Zen - Formation Zen}\\
+Statut & \texttt{étudiant}\\
+Établissement & votre établissement\\
+\bottomrule
+\end{tabular}
+
+\smallskip
+En cas de doute sur l'établissement, demandez à votre responsable de formation.
+
+\medskip
+\begin{block}{Exemple de champ \og Notes \fg}
+\emph{Master \dots{} --- cours HPC --- Université Côte d'Azur}. Sans ce champ, la demande ne peut pas être traitée.
+\end{block}
+\begin{exampleblock}{Astuce}
+Ne cliquez pas sur le second lien tant que le compte n'est pas validé.
+\end{exampleblock}
+\end{column}
+\end{columns}
+\src{documentation MesoNET, \og accès étudiants \fg{} de Zen.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Étape 4a : générer sa paire de clés SSH}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Principe} : clé \textbf{privée} (personnelle, ne la partagez jamais, elle reste sur votre machine), clé \textbf{publique} \texttt{.pub} (déposée sur le portail), \textbf{passphrase} pour protéger la clé privée. Type recommandé : \textbf{ed25519}.
+
+\medskip
+\textbf{Linux / macOS}
+\begin{verbatim}
+ssh-keygen -t ed25519 -f ~/.ssh/id_ed25519
+cat ~/.ssh/id_ed25519.pub
+\end{verbatim}
+\begin{itemize}
+\item Choisissez une \textbf{passphrase} quand elle est demandée.
+\item \texttt{id\_ed25519} = clé \textbf{privée}, \texttt{id\_ed25519.pub} = clé \textbf{publique}.
+\end{itemize}
+
+Si ed25519 ne fonctionne pas, variante RSA (\textbf{3072 bits minimum}) :
+\begin{verbatim}
+ssh-keygen -t rsa -b 3072 -f ~/.ssh/id_rsa
+\end{verbatim}
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{Windows (MobaXterm)}
+\begin{enumerate}
+\item Téléchargez la version portable sur \texttt{mobaxterm.mobatek.net}, extrayez le \texttt{.zip}.
+\item Lancez MobaXterm, ouvrez \textbf{MobaKeyGen}.
+\item Choisissez \textbf{EdDSA (Ed25519)}.
+\item \textbf{Generate}, bougez la souris jusqu'à ce que la barre verte soit pleine.
+\item \textbf{Key comment} explicite (par ex. \texttt{Zen}) et \textbf{passphrase}.
+\item \textbf{Save private key} (conservez-la\,!), puis \textbf{Save public key}.
+\item \textbf{Laissez la fenêtre ouverte} : vous copierez le cadre \og clé publique \fg{} dans le portail.
+\end{enumerate}
+\end{column}
+\end{columns}
+\src{documentation MesoNET, \og clés SSH \fg.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Étape 4b : déposer la clé et l'associer au projet}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Déposer la clé publique}
+\begin{enumerate}
+\item \textbf{acces.mesonet.fr} $\to$ \textbf{Connexion} (via eduGAIN, comme à la création du compte).
+\item Icône \textbf{Utilisateur} en haut à droite $\to$ \textbf{Clés ssh}.
+\item \textbf{Ajouter une clé}.
+\item Renseignez :
+ \begin{itemize}
+ \item \textbf{Nom de la clé} : un identifiant unique ;
+ \item \textbf{Votre clé publique ssh} : contenu du fichier \texttt{.pub}.
+ \end{itemize}
+\item Cliquez sur \textbf{ajouter}.
+\end{enumerate}
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{Associer la clé au projet}
+
+\smallskip
+Déposer la clé ne suffit pas : elle doit être \textbf{associée à votre compte dans le projet}.
+\begin{enumerate}
+\item Dans la \textbf{liste des projets} : \textbf{Ajouter une clé SSH}.
+\item \textbf{Acceptez les CGU} de la machine.
+\item \textbf{Sélectionnez la clé}, puis \textbf{Modifier}.
+\end{enumerate}
+\begin{block}{Note}
+Une clé en attente de déploiement est signalée par \textbf{\textcolor{hpcorange}{!}}. Le symbole disparaît une fois la clé déployée ; le délai dépend de la machine.
+\end{block}
+\end{column}
+\end{columns}
+\src{documentation MesoNET, \og clés SSH \fg.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Étape 5 : première connexion}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Votre identifiant}
+\begin{itemize}
+\item Comptes créés \textbf{automatiquement toutes les 10 minutes} après la procédure d'accès.
+\item Format \textbf{\texttt{m2XXXX-YY}} : \texttt{m2XXXX} = numéro du \textbf{projet}, \texttt{YY} = numéro d'utilisateur.
+\item Un identifiant par couple \textbf{projet / machine}.
+\item Le portail (liste des projets) affiche votre login et la clé associée.
+\end{itemize}
+
+\medskip
+\textbf{Se connecter}
+\begin{verbatim}
+ssh -X m2XXXX-YY@zen.univ-lille.fr \
+    -i ~/.ssh/id_ed25519
+\end{verbatim}
+\texttt{-i} peut être omis si la clé a un nom standard (\texttt{id\_ed25519}, \texttt{id\_rsa}). Aucun VPN n'est mentionné dans la documentation.
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{Raccourci avec \texttt{\textasciitilde/.ssh/config}}
+\begin{verbatim}
+Host zen
+    Hostname zen.univ-lille.fr
+    User m2XXXX-YY
+    IdentityFile ~/.ssh/id_ed25519
+\end{verbatim}
+Puis simplement :
+\begin{verbatim}
+ssh zen
+\end{verbatim}
+\begin{block}{Note}
+Sous Windows, MobaXterm : session SSH vers \texttt{zen.univ-lille.fr}, avec votre identifiant et votre clé privée.
+\end{block}
+\end{column}
+\end{columns}
+\src{documentation MesoNET, \og connexion \fg{} à Zen.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Dépannage}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{alertblock}{Attention}
+\textbf{5 échecs de connexion} $\to$ adresse IP \textbf{bloquée 1 heure}. Après un premier échec, \textbf{attendez 10 minutes} avant de réessayer.
+\end{alertblock}
+
+Vérifiez dans l'ordre :
+\begin{enumerate}
+\item Le compte a-t-il eu le temps d'être créé (10 minutes)\,?
+\item La clé est-elle \textbf{associée au projet} et sans symbole d'attente\,?
+\item Bonne \textbf{clé privée} (\texttt{-i}) et bon \textbf{identifiant}\,?
+\item Avez-vous déposé la clé \textbf{publique} (\texttt{.pub}) et non la privée\,?
+\end{enumerate}
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{Toujours bloqué\,?}
+
+\smallskip
+Écrivez à \textbf{support@mesonet.fr} avec :
+\begin{itemize}
+\item votre nom et votre projet ;
+\item votre adresse IP publique ;
+\item la sortie de :
+\end{itemize}
+\begin{verbatim}
+ssh -vvv -X m2XXXX-YY@zen.univ-lille.fr
+\end{verbatim}
+\end{column}
+\end{columns}
+\src{documentation MesoNET, \og connexion \fg{} à Zen.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Bilan et ressources}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Checklist}
+\begin{itemize}
+\item[$\square$] Compte MesoNET créé via eduGAIN, champ \og Notes \fg{} rempli
+\item[$\square$] Profil complété (\emph{Zen -- Formation Zen}, étudiant)
+\item[$\square$] Clé SSH générée, protégée par une passphrase
+\item[$\square$] Clé publique déposée sur \texttt{acces.mesonet.fr}
+\item[$\square$] Clé associée au projet, CGU acceptées
+\item[$\square$] \texttt{ssh} vers \texttt{zen.univ-lille.fr} réussi
+\end{itemize}
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{Ressources}
+\begin{itemize}
+\item {\footnotesize\url{https://www.mesonet.fr/documentation/user-documentation/code_form/zen/acces/acces_etu}}
+\item {\footnotesize\url{https://www.mesonet.fr/documentation/user-documentation/acces/ssh}}
+\item {\footnotesize\url{https://www.mesonet.fr/documentation/user-documentation/code_form/zen/connexion}}
+\item Portail : \texttt{acces.mesonet.fr}
+\end{itemize}
+\medskip
+\textbf{Prochaine étape} : jobs et mini-tuto Slurm.
+\end{column}
+\end{columns}
+\end{frame}
+
+\end{document}

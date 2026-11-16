@@ -1,0 +1,612 @@
+% Qu'est-ce qu'un supercalculateur ? — HPC, saison 2026-2027
+% Contenu adapté de V. Eijkhout, « The Art of HPC » (https://theartofhpc.com),
+% licence CC-BY 4.0. Figures redessinées en TikZ.
+\documentclass[8pt,aspectratio=169]{beamer}
+
+\usepackage[french]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{microtype}
+\usepackage{booktabs,array}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usetikzlibrary{babel,positioning,calc,arrows.meta,shapes.misc,fit,backgrounds}
+
+\usetheme[progressbar=frametitle,numbering=fraction,block=fill]{metropolis}
+\metroset{sectionpage=none,titleformat=regular}
+\setbeamersize{text margin left=0.55cm,text margin right=0.55cm}
+
+\definecolor{hpcblue}{HTML}{1F4E79}
+\definecolor{hpcorange}{HTML}{C55A11}
+\definecolor{hpcgreen}{HTML}{3B7D23}
+\definecolor{hpcgrey}{HTML}{D9D9D9}
+\setbeamercolor{palette primary}{bg=hpcblue,fg=white}
+\setbeamercolor{progress bar}{fg=hpcorange,bg=hpcgrey}
+\setbeamercolor{frametitle}{bg=hpcblue,fg=white}
+
+% Ligne de source en bas de diapo
+\newcommand{\src}[1]{\vfill{\tiny\color{gray}Source : #1\par}}
+\newcommand{\eij}{V.~Eijkhout, \emph{The Art of HPC}, vol.~1, CC-BY~4.0}
+
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcommand{\flops}{\textsc{flop/s}}
+\setlength{\parskip}{2pt}
+\setbeamertemplate{itemize items}[circle]
+
+\title{Qu'est-ce qu'un supercalculateur\,?}
+\subtitle{Unités de calcul, mémoire, parallélisme\\
+\small L'environnement HPC pour les mathématiques appliquées}
+\author{HPC --- 2026-2027}
+\date{Séance 1}
+
+\begin{document}
+
+\maketitle
+
+% ---------------------------------------------------------------
+\begin{frame}{Pourquoi s'intéresser à la machine ?}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+Vous connaissez le problème mathématique. Reste à le transformer en calcul :
+
+\medskip
+\textbf{Résoudre $Ax=b$} : plusieurs algorithmes, des coûts très différents
+
+\smallskip
+\begin{tabular}{@{}p{2.6cm}p{4.9cm}@{}}
+\toprule
+Méthode & Coût\\
+\midrule
+Inversion de $A$ & $O(N^3)$, instable\\
+Élimination de Gauss & $O(N^3)$, constante plus faible, stable\\
+Gauss creux & $O(N^{3/2})$, difficile à programmer\\
+Méthodes itératives & $O(N\,\kappa^{1/2})$, convergence non garantie\\
+Multigrille & $O(N)$, applicabilité limitée\\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Interactions de $N$ particules} : algorithme naïf en $O(N^2)$, algorithmes malins en $O(N\log N)$, parfois $O(N)$.
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{block}{Idée directrice}
+Le temps de calcul dépend de trois choses :
+\begin{enumerate}
+\item l'\textbf{algorithme} (analyse numérique) ;
+\item son \textbf{implémentation} ;
+\item l'\textbf{architecture} sur laquelle il tourne.
+\end{enumerate}
+\end{block}
+Un même algorithme peut être beaucoup plus rapide ou plus lent selon la façon dont son implémentation exploite le cache, les unités vectorielles et le parallélisme.
+
+\medskip
+\textbf{Ce cours} : comprendre la machine, pour écrire du code qui s'en sert bien.
+\end{column}
+\end{columns}
+\src{\eij{} --- cours \emph{A taste of scientific computing}.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Un supercalculateur, c'est quoi\,?}
+\begin{columns}[T]
+\begin{column}{0.55\textwidth}
+Un supercalculateur n'est pas un « très gros processeur » : c'est un \textbf{ensemble de nombreux ordinateurs}, les \textbf{nœuds}, reliés par un \textbf{réseau rapide} et partagés entre de nombreux utilisateurs.
+
+\medskip
+\textbf{Mesure de la puissance} : le nombre d'opérations flottantes par seconde, noté \flops{} (ou \emph{flops}).
+
+\medskip
+\begin{tabular}{@{}lll@{}}
+\toprule
+Préfixe & Symbole & Valeur\\
+\midrule
+giga & Gflop/s & $10^{9}$\\
+tera & Tflop/s & $10^{12}$\\
+peta & Pflop/s & $10^{15}$\\
+exa  & Eflop/s & $10^{18}$\\
+\bottomrule
+\end{tabular}
+
+\medskip
+Les plus grosses machines actuelles se mesurent en \textbf{exaflops}.
+\end{column}
+\begin{column}{0.42\textwidth}
+\begin{block}{Le classement TOP500}
+\begin{itemize}
+\item Mesure la performance sur le benchmark \textbf{Linpack} : résoudre un système linéaire dense par factorisation LU.
+\item Calcul dominé par le produit matrice-matrice : $O(n^3)$ opérations pour $O(n^2)$ données.
+\item Efficacité typique : \textbf{60 à 90\,\%} de la crête.
+\end{itemize}
+\end{block}
+\begin{alertblock}{Attention}
+Beaucoup de codes scientifiques n'ont pas cette structure : les méthodes itératives, par exemple, sont limitées par la \textbf{mémoire}, pas par le calcul.
+\end{alertblock}
+\end{column}
+\end{columns}
+\src{\eij{}, sections 2.11.4 et 6.1 ; \texttt{top500.org}.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Du cœur au cluster : la hiérarchie matérielle}
+\begin{columns}[T]
+\begin{column}{0.60\textwidth}
+\centering
+\resizebox{\linewidth}{!}{%
+\begin{tikzpicture}[
+  core/.style={draw=hpcblue,fill=hpcblue!25,minimum width=6mm,minimum height=6mm,inner sep=0pt,font=\tiny},
+  sock/.style={draw=hpcgreen,thick,rounded corners=2pt,fill=hpcgreen!8},
+  mem/.style={draw=hpcorange,fill=hpcorange!20,minimum width=1.0cm,minimum height=5mm,font=\tiny},
+  node/.style={draw=black,thick,rounded corners=3pt,fill=white},
+  lab/.style={font=\scriptsize\bfseries}]
+% nœud 1
+\begin{scope}
+ \draw[node] (0,0) rectangle (5.4,3.2);
+ \node[lab,anchor=north west] at (0.1,3.2) {Nœud 1};
+ % socket A
+ \draw[sock] (0.2,0.9) rectangle (2.6,2.7);
+ \node[font=\tiny,anchor=north west] at (0.25,2.7) {socket 0};
+ \foreach \i in {0,1,2,3}{\node[core] at (0.55+\i*0.55,2.05) {c\i};}
+ \foreach \i in {0,1,2,3}{\node[core] at (0.55+\i*0.55,1.4) {c\i};}
+ \node[mem] at (1.4,0.55) {RAM};
+ \draw (1.4,0.8) -- (1.4,0.9);
+ % socket B
+ \draw[sock] (2.8,0.9) rectangle (5.2,2.7);
+ \node[font=\tiny,anchor=north west] at (2.85,2.7) {socket 1};
+ \foreach \i in {0,1,2,3}{\node[core] at (3.15+\i*0.55,2.05) {c\i};}
+ \foreach \i in {0,1,2,3}{\node[core] at (3.15+\i*0.55,1.4) {c\i};}
+ \node[mem] at (4.0,0.55) {RAM};
+ \draw (4.0,0.8) -- (4.0,0.9);
+ \draw[<->,thick,hpcorange] (2.6,1.8) -- (2.8,1.8);
+\end{scope}
+% nœud 2
+\begin{scope}[xshift=6.0cm]
+ \draw[node] (0,0) rectangle (2.0,3.2);
+ \node[lab,anchor=north west] at (0.1,3.2) {Nœud 2};
+ \node at (1.0,1.6) {\scriptsize\dots};
+\end{scope}
+% nœud N
+\begin{scope}[xshift=8.3cm]
+ \draw[node] (0,0) rectangle (2.0,3.2);
+ \node[lab,anchor=north west] at (0.1,3.2) {Nœud $N$};
+ \node at (1.0,1.6) {\scriptsize\dots};
+\end{scope}
+% réseau
+\draw[very thick,hpcorange] (-0.1,-0.5) -- (10.4,-0.5);
+\node[font=\scriptsize\bfseries,hpcorange,anchor=north] at (5.2,-0.55) {Réseau d'interconnexion};
+\foreach \x in {2.7,7.0,9.3}{\draw[hpcorange,thick] (\x,0) -- (\x,-0.5);}
+\end{tikzpicture}}
+\end{column}
+\begin{column}{0.38\textwidth}
+\begin{tabular}{@{}L{1.1cm}L{4.1cm}@{}}
+\toprule
+\textbf{Cœur} & unité qui exécute un flot d'instructions, avec ses registres et son cache L1\\
+\textbf{Socket} & la puce (le « processeur » physique) : plusieurs cœurs, caches partagés\\
+\textbf{Nœud} & une carte mère : un ou plusieurs sockets, une mémoire commune\\
+\textbf{Cluster} & des nœuds reliés par un réseau\\
+\bottomrule
+\end{tabular}
+
+\medskip
+\begin{alertblock}{Vocabulaire}
+Le mot « processeur » est ambigu : puce ou cœur\,? On dira \textbf{socket} et \textbf{cœur}.
+\end{alertblock}
+\end{column}
+\end{columns}
+\src{\eij{}, sections 1.4 et 1.5.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Dans un cœur : les unités de calcul}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Unité flottante (FPU)} : le circuit qui additionne et multiplie des nombres flottants.
+
+\medskip
+\textbf{Pipeline} : une opération se découpe en $\ell$ étapes (lecture des opérandes, alignement des exposants, addition des mantisses, normalisation, écriture). Chaque étape a son circuit : plusieurs opérations sont « en vol » en même temps.
+\[
+t(n) = n\,\ell\,\tau \quad\longrightarrow\quad t(n) = (s+\ell+n-1)\,\tau
+\]
+$n$ opérations, $\ell$ étages, $\tau$ période d'horloge, $s$ coût d'initialisation. Accélération asymptotique : $\ell$.
+
+\medskip
+\textbf{Fusion multiplication-addition (FMA)} : $s \mathrel{+}= a\cdot b$ en une instruction, soit \textbf{2 flops}.
+\end{column}
+\begin{column}{0.48\textwidth}
+\textbf{Instructions vectorielles (SIMD)} : une instruction opère sur 2, 4 ou 8 nombres à la fois.
+
+\bigskip
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm,
+  cell/.style={draw,minimum width=0.55cm,minimum height=0.5cm,inner sep=0pt,font=\tiny}]
+ \node[font=\scriptsize,anchor=east] at (-0.1,1.55) {scalaire};
+ \node[cell,fill=hpcblue!25] (a) at (0.3,1.55) {$a_0$};
+ \node[font=\scriptsize] at (0.9,1.55) {$+$};
+ \node[cell,fill=hpcblue!25] at (1.5,1.55) {$b_0$};
+ \node[font=\scriptsize] at (2.1,1.55) {$=$};
+ \node[cell,fill=hpcgreen!30] at (2.7,1.55) {$c_0$};
+ \node[font=\scriptsize,anchor=east] at (-0.1,0.3) {vecteur (4)};
+ \foreach \i in {0,1,2,3}{
+  \node[cell,fill=hpcblue!25] at (0.3+\i*0.55,0.3) {$a_\i$};
+  \node[cell,fill=hpcblue!25] at (0.3+\i*0.55,-0.35) {$b_\i$};
+  \node[cell,fill=hpcgreen!30] at (0.3+\i*0.55,-1.0) {$c_\i$};}
+ \node[font=\scriptsize,anchor=west] at (2.7,0.3) {$+$};
+ \node[font=\scriptsize,anchor=west] at (2.7,-1.0) {$=$ en 1 instruction};
+\end{tikzpicture}
+
+\medskip
+\raggedright
+\textbf{Plusieurs unités} dans un même cœur : le cœur peut lancer plusieurs instructions indépendantes par cycle (parallélisme d'instructions).
+\end{column}
+\end{columns}
+\src{\eij{}, sections 1.2.1 et 1.2.5 ; cours \emph{Processor Architecture} (pipeline, FMA, vecteurs).}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Performance crête théorique}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\begin{block}{Formule}
+\[
+P_{\text{crête}} = f \times n_{\text{FPU}} \times w_{\text{SIMD}} \times (2\ \text{si FMA}) \times n_{\text{cœurs}}
+\]
+\end{block}
+\begin{itemize}
+\item $f$ : fréquence d'horloge (cycles par seconde)
+\item $n_{\text{FPU}}$ : nombre d'unités flottantes par cœur
+\item $w_{\text{SIMD}}$ : largeur vectorielle (nombre de doubles par instruction)
+\item $n_{\text{cœurs}}$ : cœurs au total
+\end{itemize}
+
+\medskip
+Ce maximum est \textbf{inatteignable en pratique} : très peu de codes s'en approchent. Le produit matrice-matrice, bien codé, est l'un des rares.
+\end{column}
+\begin{column}{0.48\textwidth}
+\textbf{Exemple fictif} (ordres de grandeur réalistes)
+
+\smallskip
+\begin{tabular}{@{}lr@{}}
+\toprule
+Un cœur : $2{,}5\,\text{GHz} \times 2 \times 8 \times 2$ & 80 Gflop/s\\
+Un socket de 32 cœurs & 2,56 Tflop/s\\
+Un nœud de 2 sockets & 5,12 Tflop/s\\
+Un cluster de 1000 nœuds & 5,12 Pflop/s\\
+\bottomrule
+\end{tabular}
+
+\medskip
+\begin{exampleblock}{À retenir}
+La puissance d'un supercalculateur vient du \textbf{nombre} d'unités, pas de la vitesse de chacune : exploiter la machine suppose un code \textbf{parallèle}.
+\end{exampleblock}
+\end{column}
+\end{columns}
+\src{\eij{}, section 6.1 ; les valeurs numériques de l'exemple sont illustratives.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{La mémoire : calculer vite ne suffit pas}
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+ \foreach \y/\w/\t/\c in {0/0.5/registres/hpcgreen!35, -0.7/0.95/cache L1/hpcgreen!25,
+     -1.4/1.4/cache L2/hpcblue!20, -2.1/1.85/cache L3/hpcblue!30,
+     -2.8/2.3/mémoire principale (DRAM)/hpcorange!30}{
+   \draw[fill=\c] (-\w,\y) -- (\w,\y) -- (\w+0.45,\y-0.7) -- (-\w-0.45,\y-0.7) -- cycle;
+   \node[font=\scriptsize] at (0,\y-0.35) {\t};}
+ \draw[->,thick] (3.3,-2.9) -- node[right,font=\tiny,align=left]{plus\\grand,\\plus lent} (3.3,-0.2);
+\end{tikzpicture}
+\end{column}
+\begin{column}{0.52\textwidth}
+\textbf{Le processeur calcule plus vite que la mémoire ne livre les données.} On intercale donc de petites mémoires rapides (caches) : elles aident si les données sont \textbf{réutilisées}.
+
+\medskip
+\begin{itemize}
+\item \textbf{Latence} : délai entre la demande d'une donnée et sa disponibilité.
+\item \textbf{Bande passante} : débit des données ensuite.
+\item Modèle simple : envoyer $n$ mots coûte $t = \alpha + \beta\, n$.
+\item Les transferts se font par \textbf{ligne de cache} : typiquement 64 octets, soit 8 doubles. Utilisez tous les éléments de la ligne !
+\end{itemize}
+
+\medskip
+\begin{alertblock}{Exemple historique (Sandy Bridge)}
+Un cœur peut absorber 300\,Go/s ; quatre canaux DDR3 en fournissent 51\,Go/s. L'écart doit venir de la \textbf{réutilisation} des données.
+\end{alertblock}
+\end{column}
+\end{columns}
+\src{\eij{}, sections 1.3 et 1.7 ; cours \emph{Processor Architecture} (hiérarchie mémoire, lignes de cache).}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Intensité arithmétique et modèle roofline}
+\begin{columns}[T]
+\begin{column}{0.50\textwidth}
+\begin{block}{Définition}
+Pour un algorithme qui manipule $n$ données avec $f(n)$ opérations :
+\[
+\text{intensité arithmétique} = \frac{f(n)}{n}
+\]
+(opérations par donnée, ou par octet transféré)
+\end{block}
+\begin{tabular}{@{}lc@{}}
+\toprule
+Opération & Intensité\\
+\midrule
+$x_i \leftarrow x_i + y_i$ (2 lectures, 1 écriture) & $1/3$\\
+$x_i \leftarrow a\,x_i + y_i$ (axpy) & $2/3$\\
+Produit matrice-matrice & $O(n^3)/O(n^2)$, croît avec $n$\\
+\bottomrule
+\end{tabular}
+
+\medskip
+Intensité faible : performance limitée par la \textbf{bande passante}. Intensité élevée : limitée par la \textbf{crête de calcul}.
+\end{column}
+\begin{column}{0.48\textwidth}
+\centering
+\begin{tikzpicture}[x=1cm,y=1cm]
+ \draw[->] (0,0) -- (6.2,0) node[right,font=\tiny] {$I$};
+ \draw[->] (0,0) -- (0,3.9) node[above,font=\tiny] {perf.};
+ \draw[very thick,hpcblue] (0,0.3) -- (3.3,3.3) -- (6,3.3);
+ \draw[dashed,gray] (3.3,3.3) -- (3.3,0);
+ \node[font=\tiny,hpcblue,anchor=south west] at (4.2,3.3) {crête de calcul};
+ \node[font=\tiny,hpcblue,rotate=42,anchor=south] at (1.2,1.4) {limité par la bande passante};
+ \fill[hpcorange] (0.8,1.0) circle (2pt) node[right=2pt,font=\tiny] {$x+y$};
+ \fill[hpcorange] (1.6,1.75) circle (2pt) node[right=2pt,font=\tiny] {axpy};
+ \fill[hpcgreen] (5.0,3.3) circle (2pt) node[below=3pt,font=\tiny] {matmul};
+ \node[font=\tiny,gray] at (1.65,-0.25) {mémoire};
+ \node[font=\tiny,anchor=north] at (3.1,-0.45) {intensité arithmétique $I$, échelle log};
+ \node[font=\tiny,gray] at (4.6,-0.25) {calcul};
+\end{tikzpicture}
+
+\smallskip
+{\scriptsize Schéma qualitatif, non à l'échelle.}
+\end{column}
+\end{columns}
+\src{\eij{}, section 1.6.1 ; cours \emph{Processor Architecture} (roofline).}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Pourquoi des processeurs multicœurs\,?}
+\begin{columns}[T]
+\begin{column}{0.52\textwidth}
+Deux limites ont arrêté la course à la fréquence et à la sophistication d'un seul cœur :
+\begin{enumerate}
+\item \textbf{Le mur de l'énergie} : monter en fréquence augmente la consommation et l'échauffement.
+\item \textbf{Le parallélisme d'instructions s'épuise} : les codes n'offrent pas assez d'instructions indépendantes pour des pipelines toujours plus longs.
+\end{enumerate}
+
+\medskip
+\begin{block}{Puissance dynamique}
+Charge $q=CV$, travail $W=qV=CV^2$, puissance $P = W F = C V^2 F$.
+
+\smallskip
+Deux cœurs à demi-fréquence ($C_{\text{multi}}=2C$, $F_{\text{multi}}=F/2$, $V_{\text{multi}}=V/2$) :
+\[
+P_{\text{multi}} = 2C\,\frac{V^2}{4}\,\frac{F}{2} = \frac{P}{4}
+\]
+\end{block}
+\end{column}
+\begin{column}{0.44\textwidth}
+\textbf{Même débit de calcul, quatre fois moins de puissance} (cas idéal).
+
+\medskip
+\textbf{Contrepartie} : le parallélisme n'est plus découvert automatiquement par le processeur, il doit être \textbf{exprimé par le programmeur}.
+
+\medskip
+\begin{alertblock}{Cohérence de cache}
+Chaque cœur a son cache L1 privé. Si deux cœurs copient la même donnée et que l'un la modifie, l'autre copie devient invalide. Elle est gérée automatiquement par le matériel, sauf quand elle coûte cher :
+
+\smallskip
+\textbf{faux partage} : des cœurs écrivent dans des éléments différents d'une même ligne de cache.
+\end{alertblock}
+\end{column}
+\end{columns}
+\src{\eij{}, sections 1.4 et 1.7.1.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{Un nœud : mémoire partagée et NUMA}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+Au sein d'un nœud, tous les cœurs voient la \textbf{même mémoire} (mémoire partagée). Mais cette mémoire a une structure : elle est répartie en \textbf{bancs}, chacun relié directement à un socket.
+
+\medskip
+\textbf{NUMA} (\emph{Non-Uniform Memory Access}) : pour un cœur, la mémoire de son propre socket est un peu plus rapide d'accès que celle de l'autre socket.
+
+\medskip
+\textbf{Conséquence : le \emph{first touch}.} Une page mémoire est réellement allouée à sa première écriture, dans la mémoire du socket qui écrit.
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{Piège classique}
+\begin{verbatim}
+x = malloc(N*sizeof(double));
+for (i=0; i<N; ++i) x[i] = 1;   // séquentiel
+#pragma omp parallel for
+for (i=0; i<N; ++i) /* calcul */ ;
+\end{verbatim}
+Tout le tableau est alloué sur le socket du fil principal : les cœurs de l'autre socket accèdent à une mémoire plus lointaine.
+\end{block}
+\textbf{Remède} : paralléliser aussi la boucle d'initialisation, même si elle ne coûte presque rien.
+\end{column}
+\end{columns}
+\src{\eij{}, section 1.5.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Un cluster : mémoire distribuée, nœuds de connexion et de calcul}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+\textbf{Mémoire distribuée} : chaque nœud a sa propre mémoire, invisible des autres. Pour échanger des données entre nœuds, il faut envoyer des \textbf{messages} sur le réseau (MPI).
+
+\medskip
+\textbf{Deux types de nœuds}
+\begin{itemize}
+\item \textbf{Nœuds de connexion} (\emph{login}) : ceux sur lesquels vous faites \texttt{ssh}. Partagés par de nombreux utilisateurs.
+\item \textbf{Nœuds de calcul} : là où tourne votre travail, souvent réservés à vous seul.
+\end{itemize}
+\end{column}
+\begin{column}{0.48\textwidth}
+\begin{block}{Sur le nœud de connexion, vous pouvez}
+\begin{itemize}
+\item compiler ;
+\item post-traiter des résultats ;
+\item lancer de très courts programmes (pas de MPI) ;
+\item \textbf{soumettre} des jobs.
+\end{itemize}
+\end{block}
+\begin{alertblock}{Ne lancez pas vos calculs parallèles sur le nœud de connexion.}
+Les jobs passent par l'ordonnanceur \textbf{Slurm} : \texttt{sbatch} pour soumettre un script, \texttt{squeue} pour suivre son état. Mini-tuto Slurm : prochaine partie.
+\end{alertblock}
+\end{column}
+\end{columns}
+\src{V.~Eijkhout, \emph{Supercomputer Clusters}, 2026 PCSE, CC-BY~4.0 ; \eij{}, section 2.6.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Modèles de programmation}
+\begin{columns}[T]
+\begin{column}{0.46\textwidth}
+\textbf{Taxonomie de Flynn} : flot d'instructions et flot de données, uniques ou multiples.
+
+\smallskip
+\begin{tabular}{@{}lp{4.2cm}@{}}
+\toprule
+SISD & une instruction, une donnée : le processeur classique\\
+SIMD & une instruction, plusieurs données : vecteurs, GPU\\
+MIMD & plusieurs instructions, plusieurs données : la plupart des machines parallèles actuelles\\
+\bottomrule
+\end{tabular}
+
+\smallskip
+{\scriptsize MISD : pas d'architecture réelle.}
+\end{column}
+\begin{column}{0.52\textwidth}
+\textbf{Du matériel au modèle de programmation}
+
+\smallskip
+\begin{tabular}{@{}lll@{}}
+\toprule
+Niveau & Mémoire & Outil\\
+\midrule
+Vecteurs d'un cœur & --- & compilateur (SIMD)\\
+Cœurs d'un nœud & partagée & OpenMP\\
+Nœuds d'un cluster & distribuée & MPI\\
+\bottomrule
+\end{tabular}
+
+\medskip
+\textbf{Approche hybride} : MPI entre les nœuds, OpenMP au sein de chaque nœud. Souvent, un seul processus MPI par nœud (ou par socket) lance autant de fils OpenMP que de cœurs.
+
+\medskip
+\begin{exampleblock}{Dans ce cours}
+Nous commençons par la performance sur un cœur, puis MPI (séances 3 à 5).
+\end{exampleblock}
+\end{column}
+\end{columns}
+\src{\eij{}, sections 2.3 et 2.6.4.}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Ajouter des cœurs ne suffit pas : loi d'Amdahl}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+Soit $f$ la fraction \textbf{séquentielle} d'un programme (qui ne se parallélise pas). Sur $p$ cœurs :
+\[
+S(p) = \frac{T(1)}{T(p)} = \frac{1}{f + \dfrac{1-f}{p}}
+\qquad
+E(p) = \frac{S(p)}{p}
+\]
+$S$ : accélération (\emph{speedup}), $E$ : efficacité.
+
+\medskip
+Quand $p\to\infty$ : $S \to 1/f$. Avec $f = 5\,\%$, l'accélération ne dépassera jamais \textbf{20}, même avec un million de cœurs.
+\end{column}
+\begin{column}{0.46\textwidth}
+\begin{block}{Ce qui freine en pratique}
+\begin{itemize}
+\item la partie séquentielle du code ;
+\item la \textbf{bande passante mémoire} partagée entre les cœurs ;
+\item la \textbf{communication} entre nœuds (latence, bande passante) ;
+\item le \textbf{déséquilibre} de charge entre cœurs.
+\end{itemize}
+\end{block}
+\textbf{Objectif du cours} : concevoir des algorithmes et des codes dont la partie parallèle domine et dont les communications restent faibles.
+\end{column}
+\end{columns}
+\src{loi d'Amdahl : résultat classique, ajouté à ce support (non issu des sources d'Eijkhout citées).}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}[fragile]{À faire : lire l'architecture d'une machine}
+\begin{columns}[T]
+\begin{column}{0.5\textwidth}
+Sur une machine Linux, ces commandes décrivent le matériel :
+\begin{block}{Commandes}
+\begin{verbatim}
+lscpu    # sockets, cœurs, fréquence
+nproc    # cœurs visibles
+free -h  # mémoire du nœud
+sinfo    # partitions Slurm
+\end{verbatim}
+\end{block}
+\begin{alertblock}{Attention}
+Sur le nœud de connexion, ces commandes décrivent \textbf{ce nœud-là}, pas forcément les nœuds de calcul. Refaites-les \textbf{dans un job} (voir le mini-tuto Slurm).
+\end{alertblock}
+\end{column}
+\begin{column}{0.46\textwidth}
+\textbf{Questions}
+\begin{enumerate}
+\item Combien de sockets, de cœurs par socket, de fils par cœur\,?
+\item Quelle est la fréquence ? Quelle est la mémoire du nœud\,?
+\item En supposant 2 unités FMA et des vecteurs de 8 doubles (à vérifier selon le modèle de processeur), calculez la \textbf{crête} d'un cœur, puis d'un nœud.
+\item Combien de nœuds dans le cluster\,? Quelle crête totale\,?
+\end{enumerate}
+\medskip
+Les largeurs vectorielles et le nombre d'unités dépendent du modèle de processeur (champ \texttt{Model name}) : cherchez-le dans la documentation du fabricant.
+\end{column}
+\end{columns}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Vocabulaire à retenir}
+\centering
+\small
+\begin{tabular}{@{}p{3.2cm}p{9.5cm}@{}}
+\toprule
+\textbf{Terme} & \textbf{Définition}\\
+\midrule
+Flop, flop/s & opération flottante ; nombre d'opérations flottantes par seconde\\
+Cœur & unité exécutant un flot d'instructions, avec registres et cache L1\\
+Socket & puce physique regroupant plusieurs cœurs et des caches partagés\\
+Nœud & un ordinateur du cluster : un ou plusieurs sockets, une mémoire\\
+Cluster & ensemble de nœuds reliés par un réseau\\
+Pipeline & découpage d'une opération en étapes traitées simultanément\\
+SIMD / vectoriel & une instruction opère sur plusieurs données à la fois\\
+FMA & multiplication-addition fusionnée, 2 flops en une instruction\\
+Latence, bande passante & délai d'accès ; débit de transfert\\
+Intensité arithmétique & opérations par donnée transférée\\
+Mémoire partagée, distribuée & visible de tous les cœurs d'un nœud ; propre à chaque nœud, échanges par messages\\
+NUMA & temps d'accès mémoire qui dépend du socket\\
+Nœud de connexion, de calcul & où l'on se connecte et soumet ; où tourne le job\\
+\bottomrule
+\end{tabular}
+\end{frame}
+
+% ---------------------------------------------------------------
+\begin{frame}{Sources et licence}
+\textbf{Ce support s'appuie sur les travaux de Victor Eijkhout} (Texas Advanced Computing Center), série \emph{The Art of HPC}, publiée sous licence \textbf{CC-BY~4.0}.
+
+\medskip
+\begin{itemize}
+\item \texttt{https://theartofhpc.com}
+\item \emph{The Art of HPC, Volume 1 : The Science of Computing} (\emph{Introduction to High Performance Scientific Computing}) : chapitres 1 (architecture d'un processeur), 2 (calcul parallèle), 6 (performance).
+\item Cours \emph{Processor Architecture}, \emph{A Taste of Scientific Computing}, \emph{Supercomputer Clusters}.
+\item PDF : \texttt{github.com/VictorEijkhout/TheArtofHPC\_pdfs}
+\end{itemize}
+
+\medskip
+\textbf{Modifications} : contenu traduit en français, condensé et réorganisé ; figures redessinées ; exemple numérique et loi d'Amdahl ajoutés (non issus de la source) ; exercices adaptés au cluster Zen.
+
+\bigskip
+{\scriptsize Licence CC-BY~4.0 : \texttt{creativecommons.org/licenses/by/4.0/}. Toute réutilisation de ce support doit conserver cette attribution.}
+\end{frame}
+
+\end{document}
