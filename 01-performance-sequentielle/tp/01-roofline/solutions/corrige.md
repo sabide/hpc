@@ -41,6 +41,11 @@ Mesures (M3 Pro, `-O3`, débit en GB/s) :
 | 1024 | 78 | 2,2 | 36 |
 | 4096 | 68 | 1,4 | 50 |
 
+Avec `g++` 13 sur le même noyau (`kernels.cpp`), j'ai mesuré un écart encore plus grand, de **190 à 320** selon le niveau d'optimisation :
+le comportement dépend du compilateur, mais l'ordre de grandeur « plusieurs dizaines à plusieurs centaines » est robuste.
+Pour une dimension égale à une puissance de 2, cet écart est **très variable d'une exécution à l'autre** (de 50 à 300 avec `loop_order.c`
+du TP `02-ondes`, même compilateur) : donner une fourchette, et préférer une taille voisine (4097) pour une mesure stable.
+
 - **Q2.** Rapport de l'ordre de 50 à n = 4096. Dans `scale_cols`, chaque ligne de cache chargée (64 octets,
   8 doubles) n'est utilisée que pour **1** double avant d'être évincée : on transfère 8 fois plus que nécessaire.
   À n = 128 la matrice tient dans le cache, mais `scale_cols` reste lent : le parcours en saut

@@ -15,6 +15,7 @@ tp/       TP (énoncé, code de départ, solutions/ réservé au dépôt privé)
 | Séance | Contenu | Supports |
 |---|---|---|
 | S1 – cours 2 | équation d'onde 1D/2D, layout mémoire, localité et cache, impact sur les boucles | `cours/loop_optimize.pdf`, `demos/waves_1D`, `demos/fortran-2d`, `demos/anim*.py` |
+| S1 – TD/TP (2 h) | complexité, mémoire, stockage 2D, langages, options de compilation, ordre des boucles, deux optimisations | `tp/02-ondes` |
 | S2 (1 h) | puissance crête, ordre des boucles, options de compilation, roofline | `cours/puissance-crete-roofline` (`.tex`, `.pdf`), `tp/01-roofline` |
 | S2 (suite) | tiling | `demos/tiling-1` |
 
@@ -29,8 +30,13 @@ tp/       TP (énoncé, code de départ, solutions/ réservé au dépôt privé)
 
 ## TP
 
+- [`tp/02-ondes`](tp/02-ondes/enonce.md) : TD sur papier puis TP de 2 h sur l'équation d'onde (complexité,
+  comparaison C/Fortran/Python/NumPy, options de compilation, ordre des boucles, optimisations à la main).
+  À faire **avant** le TP roofline.
 - [`tp/01-roofline`](tp/01-roofline/enonce.md) : quatre exercices de prise en main en 1 h (crête, boucles,
   options de compilation, roofline). Un programme unique (`src/kernels.cpp`) sert à tous les exercices.
+  L'exercice 2 (ordre des boucles) reprend en plus court ce que fait `tp/02-ondes` : le raccourcir ou le
+  traiter comme une révision si les deux TP sont faits.
 
 ## Liens entre les supports
 
